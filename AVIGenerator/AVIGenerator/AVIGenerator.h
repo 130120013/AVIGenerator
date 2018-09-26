@@ -17,11 +17,12 @@ typedef struct List
 	std::uint32_t dwSize;
 	std::uint32_t dwFourCC;
 	std::unique_ptr<unsigned char> data; // contains Lists and Chunks
-};
+};
+
 struct MainAVIHeader
 {
-	std::uint32_t fcc;
-	std::uint32_t cb;
+	std::uint32_t fcc = 0x61766968; // avih
+	std::uint32_t cb = sizeof(MainAVIHeader) - 8; //
 	std::uint32_t dwMicroSecPerFrame;
 	std::uint32_t dwMaxBytesPerSec;
 	std::uint32_t dwPaddingGranularity;
@@ -45,30 +46,38 @@ struct RECT
 
 struct AVIStreamHeader 
 {
-	std::uint32_t fccType;
-	std::uint32_t fccHandler;
-	std::uint32_t  dwFlags;
-	std::uint16_t   wPriority;
-	std::uint16_t   wLanguage;
-	std::uint32_t  dwInitialFrames;
-	std::uint32_t  dwScale;
-	std::uint32_t  dwRate;
-	std::uint32_t  dwStart;
-	std::uint32_t  dwLength;
-	std::uint32_t  dwSuggestedBufferSize;
-	std::uint32_t  dwQuality;
-	std::uint32_t  dwSampleSize;
-	RECT   rcFrame;
+	std::uint32_t fccType = 0x76696473; //vids - contains video data
+	std::uint32_t fccHandler; //http://www.fourcc.org/codecs.php
+	std::uint32_t dwFlags;
+	std::uint16_t wPriority;
+	std::uint16_t wLanguage;
+	std::uint32_t dwInitialFrames;
+	std::uint32_t dwScale;
+	std::uint32_t dwRate;
+	std::uint32_t dwStart;
+	std::uint32_t dwLength;
+	std::uint32_t dwSuggestedBufferSize;
+	std::uint32_t dwQuality;
+	std::uint32_t dwSampleSize;
+	RECT rcFrame;
 };
 
 //STRF - BITMAPINFO structure
 
-struct AVIIndexEntry{
+struct AVIIndexEntry
+{
 	std::uint32_t ckid;
 	std::uint32_t dwFlags;
 	std::uint32_t dwChunkOffset;
 	std::uint32_t dwChunkLength;
-};
+};
+//00db
+
+/*
+DIB  Bits  '##db'
+	 BYTE  abBits[];
+*/
+
 
 void createAVI();
 
