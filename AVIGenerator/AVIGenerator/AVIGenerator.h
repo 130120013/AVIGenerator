@@ -6,17 +6,17 @@
 
 struct Chunk 
 {
-	std::uint32_t dwFourCC;
-	std::uint32_t dwSize;
-	std::unique_ptr<unsigned char> data; // contains headers or video/audio data dwSize
+	std::uint32_t ckID;
+	std::uint32_t ckSize;
+	std::unique_ptr<unsigned char[]> ckData; // contains headers or video/audio data dwSize
 };
 
 typedef struct List
 {
-	std::uint32_t dwList;
-	std::uint32_t dwSize;
-	std::uint32_t dwFourCC;
-	std::unique_ptr<unsigned char> data; // contains Lists and Chunks
+	const std::uint32_t dwList = 0x4C495354;
+	std::uint32_t listSize;
+	std::uint32_t listType;
+	std::unique_ptr<unsigned char[]> listData; // contains Lists and Chunks
 };
 
 struct MainAVIHeader
