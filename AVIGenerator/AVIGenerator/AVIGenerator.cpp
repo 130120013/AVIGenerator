@@ -1,11 +1,18 @@
 #include "AVIGenerator.h"
 
-std::uint32_t dwLittleEndianToBigEndian(std::uint32_t num) //need overload for long
+template <class T>
+T LittleEndianToBigEndian(T num)
 {
-	return ((num >> 24) & 0xff) | // move byte 3 to byte 0
-		((num << 8) & 0xff0000) | // move byte 1 to byte 2
-		((num >> 8) & 0xff00) | // move byte 2 to byte 1
-		((num << 24) & 0xff000000); // byte 0 to byte 3
+	if (sizeof(T) == 32) //for std::uint32_t and long x32
+	{
+		return ((num >> 24) & 0xFF) |
+			((num << 8) & 0xFF0000) |
+			((num >> 8) & 0xFF00) |
+			((num << 24) & 0xFF000000);
+	}
+	num = ((num << 8) & 0xFF00FF00FF00FF00ULL) | ((num >> 8) & 0x00FF00FF00FF00FFULL); //for long x64
+	num = ((num << 16) & 0xFFFF0000FFFF0000ULL) | ((num >> 16) & 0x0000FFFF0000FFFFULL);
+	return (num << 32) | ((num >> 32) & 0xFFFFFFFFULL);
 }
 
 void createAVI()
