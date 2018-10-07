@@ -15,16 +15,66 @@ T LittleEndianToBigEndian(T num)
 	return (num << 32) | ((num >> 32) & 0xFFFFFFFFULL);
 }
 
+struct bmp_file_handle_close
+{
+	inline void operator()(std::FILE* fp) const noexcept
+	{
+		std::fclose(fp);
+	}
+};
+
+using unique_bmp_file_handle = std::unique_ptr<std::FILE, bmp_file_handle_close>;
+
 void createAVI()
 {
-	List RIFFList;
-	RIFFList.listType = 0x52494646; //'RIFF'
-	//RIFFList.listType = 0x41564920; //'AVI '
-	
+	Chunk RIFF;
+	RIFF.ckID = 0x52494646; //'RIFF'
+	Chunk AVI;
+	AVI.ckID = 0x415564920; //'AVI '
 
 	List hdrl;
 	hdrl.listType = 0x6864726c; //'hdrl'
+	MainAVIHeader mainAVI;
+	List strl;
+	strl.listType = 0x7374726c; //'strl'
+	Chunk streamHeader;
+	streamHeader.ckID = 0x73747268; //'strh'
+	AVIStreamHeader strh;
+	Chunk streamFormat;
+	streamFormat.ckID = 0x73747266; //'strf'
+	BITMAPINFOHEADER bmInfo;
+	auto f1 = unique_bmp_file_handle(std::fopen("f_1.bmp", "rb"));
+	if (bool(f1))
+		return;
 
-	MainAVIHeader mainHeader;
-	mainHeader.fcc = 0x61766968; // 'avih'
+	fseek(f1.get(), 14, SEEK_CUR);
+	fread(&bmInfo, sizeof(BITMAPINFOHEADER), 1, f1.get());
+	fseek(f1.get(), 0, SEEK_SET);
+
+	List movi;
+	movi.listType = 0x6d6f7669; //'movi'
+	//strf - BIMAPINFO
+	/* 5 פנוילמג
+	std::vector<Chunk> frames;
+	for(auto i = 0; i < 5; ++i)
+		frames[i].ckID = 0x00006462;
+	
+	auto f1 = unique_bmp_file_handle(std::fopen("f_1.bmp", "rb"));
+	if (bool(f1))
+		return;
+	auto f2 = unique_bmp_file_handle(std::fopen("f_2.bmp", "rb"));
+	if (bool(f2))
+		return;
+	auto f3 = unique_bmp_file_handle(std::fopen("f_3.bmp", "rb"));
+	if (bool(f3))
+		return;
+	auto f4 = unique_bmp_file_handle(std::fopen("f_4.bmp", "rb"));
+	if (bool(f4))
+		return;
+	auto f5 = unique_bmp_file_handle(std::fopen("f_5.bmp", "rb"));
+	if (bool(f5))
+		return;
+	std::unique_ptr<unsigned char[]> buff;
+	std::fread(buff, );
+	*/
 }

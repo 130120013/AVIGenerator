@@ -1,5 +1,7 @@
 #include <cstdint>
 #include <memory>
+#include <vector>
+#include <cstdio>
 
 #ifndef AVI_GENERATOR
 #define AVI_GENERATOR
@@ -11,7 +13,7 @@ struct Chunk
 	std::unique_ptr<unsigned char[]> ckData; // contains headers or video/audio data dwSize
 };
 
-typedef struct List
+struct List
 {
 	const std::uint32_t dwList = 0x4C495354;
 	std::uint32_t listSize;
@@ -22,7 +24,7 @@ typedef struct List
 struct MainAVIHeader
 {
 	std::uint32_t fcc = 0x61766968; // avih
-	std::uint32_t cb = sizeof(MainAVIHeader) - 8; //
+	std::uint32_t cb; //= sizeof(MainAVIHeader) - 8; 
 	std::uint32_t dwMicroSecPerFrame;
 	std::uint32_t dwMaxBytesPerSec;
 	std::uint32_t dwPaddingGranularity;
@@ -60,6 +62,21 @@ struct AVIStreamHeader
 	std::uint32_t dwQuality;
 	std::uint32_t dwSampleSize;
 	RECT rcFrame;
+};
+
+struct BITMAPINFOHEADER 
+{
+	std::uint32_t biSize;
+	long  biWidth;
+	long  biHeight;
+	std::uint16_t  biPlanes;
+	std::uint16_t  biBitCount;
+	std::uint32_t biCompression;
+	std::uint32_t biSizeImage;
+	long  biXPelsPerMeter;
+	long  biYPelsPerMeter;
+	std::uint32_t biClrUsed;
+	std::uint32_t biClrImportant;
 };
 
 //STRF - BITMAPINFO structure
