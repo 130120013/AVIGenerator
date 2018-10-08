@@ -1,6 +1,5 @@
 #include <cstdint>
 #include <memory>
-#include <vector>
 #include <cstdio>
 
 #ifndef AVI_GENERATOR

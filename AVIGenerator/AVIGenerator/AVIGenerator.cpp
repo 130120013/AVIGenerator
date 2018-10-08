@@ -46,19 +46,21 @@ void createAVI()
 	auto f1 = unique_bmp_file_handle(std::fopen("f_1.bmp", "rb"));
 	if (bool(f1))
 		return;
-
+	//קטעאול bitmapinfo
 	fseek(f1.get(), 14, SEEK_CUR);
 	fread(&bmInfo, sizeof(BITMAPINFOHEADER), 1, f1.get());
+	fseek(f1.get(), 0, SEEK_END);
+	std::size_t frameSize = ftell(f1.get()); 
 	fseek(f1.get(), 0, SEEK_SET);
 
 	List movi;
 	movi.listType = 0x6d6f7669; //'movi'
 	//strf - BIMAPINFO
-	/* 5 פנוילמג
-	std::vector<Chunk> frames;
-	for(auto i = 0; i < 5; ++i)
-		frames[i].ckID = 0x00006462;
-	
+
+	Chunk frame;
+	frame.ckID = 0x00006462;
+
+	//קטעאול 5 פאיכמג
 	auto f1 = unique_bmp_file_handle(std::fopen("f_1.bmp", "rb"));
 	if (bool(f1))
 		return;
@@ -75,6 +77,11 @@ void createAVI()
 	if (bool(f5))
 		return;
 	std::unique_ptr<unsigned char[]> buff;
-	std::fread(buff, );
-	*/
+	std::fread(buff.get(), frameSize, 1, f1.get());
+	std::fread(buff.get(), frameSize, 1, f2.get());
+	std::fread(buff.get(), frameSize, 1, f3.get());
+	std::fread(buff.get(), frameSize, 1, f4.get());
+	std::fread(buff.get(), frameSize, 1, f5.get());
+
+
 }
