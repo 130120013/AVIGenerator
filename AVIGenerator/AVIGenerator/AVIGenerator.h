@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <memory>
 #include <cstdio>
+#include "ImageGenerator.h"
 
 #ifndef AVI_GENERATOR
 #define AVI_GENERATOR
@@ -61,21 +62,6 @@ struct AVIStreamHeader
 	std::uint32_t dwQuality;
 	std::uint32_t dwSampleSize;
 	RECT rcFrame;
-};
-
-struct BITMAPINFOHEADER 
-{
-	std::uint32_t biSize;
-	long  biWidth;
-	long  biHeight;
-	std::uint16_t  biPlanes;
-	std::uint16_t  biBitCount;
-	std::uint32_t biCompression;
-	std::uint32_t biSizeImage;
-	long  biXPelsPerMeter;
-	long  biYPelsPerMeter;
-	std::uint32_t biClrUsed;
-	std::uint32_t biClrImportant;
 };
 
 //STRF - BITMAPINFO structure
