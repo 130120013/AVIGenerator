@@ -94,8 +94,42 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	streamHeader.ckSize = LittleEndianToBigEndian(sizeof(AVIStreamHeader));
 	Chunk streamFormat;
 	streamFormat.ckID = LittleEndianToBigEndian(0x73747266); //'strf'
-	BITMAPINFOHEADER bmInfo;
-	streamFormat.ckSize = sizeof(BITMAPINFOHEADER);
+	BitmapInfoHeaderPtr bmInfo;
+
+	//STRH
+	strh.fccHandler = 0;
+	strh.dwFlags = 0;
+	strh.wPriority = 0;
+	strh.wLanguage = 0;
+	strh.dwInitialFrames = 0;
+	strh.dwScale = LittleEndianToBigEndian(frames / 25);
+	strh.dwRate = LittleEndianToBigEndian(25);
+	strh.dwStart = 0;
+	strh.dwLength = LittleEndianToBigEndian(frames / 25);
+	strh.dwSuggestedBufferSize = 0;
+	strh.dwQuality = LittleEndianToBigEndian(-1);
+	strh.dwSampleSize = 0;
+	strh.rcFrame = RECT(0, 0, width, -1 * height);
+
+	memcpy(streamHeader.ckData.get(), strh.fccHandler, sizeof(uint32_t));
+	memcpy(streamHeader.ckData.get(), strh.dwFlags, sizeof(uint32_t));
+	memcpy(streamHeader.ckData.get(), strh.wPriority, sizeof(uint16_t));
+	memcpy(streamHeader.ckData.get(), strh.wLanguage, sizeof(uint16_t));
+	memcpy(streamHeader.ckData.get(), strh.dwInitialFrames, sizeof(uint32_t));
+	memcpy(streamHeader.ckData.get(), strh.dwScale, sizeof(uint32_t));
+	memcpy(streamHeader.ckData.get(), strh.dwRate, sizeof(uint32_t));
+	memcpy(streamHeader.ckData.get(), strh.dwStart, sizeof(uint32_t));
+	memcpy(streamHeader.ckData.get(), strh.dwLength, sizeof(uint32_t));
+	memcpy(streamHeader.ckData.get(), strh.dwSuggestedBufferSize, sizeof(uint32_t));
+	memcpy(streamHeader.ckData.get(), strh.dwQuality, sizeof(uint32_t));
+	memcpy(streamHeader.ckData.get(), strh.dwSampleSize, sizeof(uint32_t));
+	memcpy(streamHeader.ckData.get(), strh.rcFrame.left, sizeof(long));
+	memcpy(streamHeader.ckData.get(), strh.rcFrame.top, sizeof(long));
+	memcpy(streamHeader.ckData.get(), strh.rcFrame.right, sizeof(long));
+	memcpy(streamHeader.ckData.get(), strh.rcFrame.bottom, sizeof(long));
+
+	//STRF
+	streamFormat.ckSize = bmInfo.size;
 
 	bmInfo->biSize = LittleEndianToBigEndian(40);
 	bmInfo->biWidth = LittleEndianToBigEndian((std::uint32_t) width);
@@ -109,15 +143,26 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	bmInfo->biClrUsed = 0;
 	bmInfo->biClrImportant = 0;
 
-	memcpy(streamFormat.ckData.get(), &bmInfo, sizeof(BITMAPINFOHEADER));
+	memcpy(streamFormat.ckData.get(), &bmInfo->biSize, sizeof(bmInfo->biSize));
+	memcpy(streamFormat.ckData.get(), &bmInfo->biWidth, sizeof(bmInfo->biWidth));
+	memcpy(streamFormat.ckData.get(), &bmInfo->biHeight, sizeof(bmInfo->biHeight));
+	memcpy(streamFormat.ckData.get(), &bmInfo->biPlanes, sizeof(bmInfo->biPlanes));
+	memcpy(streamFormat.ckData.get(), &bmInfo->biBitCount, sizeof(bmInfo->biBitCount));
+	memcpy(streamFormat.ckData.get(), &bmInfo->biCompression, sizeof(bmInfo->biCompression));
+	memcpy(streamFormat.ckData.get(), &bmInfo->biSizeImage, sizeof(bmInfo->biSizeImage));
+	memcpy(streamFormat.ckData.get(), &bmInfo->biXPelsPerMeter, sizeof(bmInfo->biXPelsPerMeter));
+	memcpy(streamFormat.ckData.get(), &bmInfo->biYPelsPerMeter, sizeof(bmInfo->biYPelsPerMeter));
+	memcpy(streamFormat.ckData.get(), &bmInfo->biClrUsed, sizeof(bmInfo->biClrUsed));
+	memcpy(streamFormat.ckData.get(), &bmInfo->biClrImportant, sizeof(bmInfo->biClrImportant));
+		   
+	//STRL
+	memcpy(strl.listData.get(), &streamHeader.ckID, sizeof(streamHeader.ckID));
+	memcpy(strl.listData.get(), &streamHeader.ckSize, sizeof(streamHeader.ckSize));
+	memcpy(strl.listData.get(), &streamHeader.ckData, streamHeader.ckSize);
 
-	auto aviFile = unique_avi_file_handle(std::fopen("animated.avi", "wb"));
-	if (bool(aviFile) && !discard_file)
-		return;
-
+	//MOVI
 	List movi;
 	movi.listType = LittleEndianToBigEndian(0x6d6f7669); //'movi'
-								//strf - BIMAPINFO
 
 	Chunk frame;
 	frame.ckID = LittleEndianToBigEndian(0x00006462);
@@ -126,8 +171,24 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 
 	memcpy(movi.listData.get(), &frame, sizeof(frame));
 	movi.listSize = LittleEndianToBigEndian(sizeof(frame) + sizeof(movi.listType));
+	
+	std::uint32_t fcc = 0x61766968; // avih
+	std::uint32_t cb; //= sizeof(MainAVIHeader) - 8; 
+	std::uint32_t dwMicroSecPerFrame;
+	std::uint32_t dwMaxBytesPerSec;
+	std::uint32_t dwPaddingGranularity;
+	std::uint32_t dwFlags;
+	std::uint32_t dwTotalFrames;
+	std::uint32_t dwInitialFrames;
+	std::uint32_t dwStreams;
+	std::uint32_t dwSuggestedBufferSize;
+	std::uint32_t dwWidth;
+	std::uint32_t dwHeight;
+	std::uint32_t dwReserved[4];
 
-
+	auto aviFile = unique_avi_file_handle(std::fopen("animated.avi", "wb"));
+	if (bool(aviFile) && !discard_file)
+		return;
 
 
 }
