@@ -97,19 +97,19 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	BitmapInfoHeaderPtr bmInfo;
 
 	//STRH
-	strh.fccHandler = 0;
-	strh.dwFlags = 0;
-	strh.wPriority = 0;
-	strh.wLanguage = 0;
-	strh.dwInitialFrames = 0;
-	strh.dwScale = LittleEndianToBigEndian(frames / 25);
-	strh.dwRate = LittleEndianToBigEndian(25);
-	strh.dwStart = 0;
-	strh.dwLength = LittleEndianToBigEndian(frames / 25);
-	strh.dwSuggestedBufferSize = 0;
-	strh.dwQuality = LittleEndianToBigEndian(-1);
-	strh.dwSampleSize = 0;
-	strh.rcFrame = RECT(0, 0, width, -1 * height);
+	strh.fccHandler() = 0;
+	strh.dwFlags() = 0;
+	strh.wPriority() = 0;
+	strh.wLanguage() = 0;
+	strh.dwInitialFrames() = 0;
+	strh.dwScale() = LittleEndianToBigEndian(frames / 25);
+	strh.dwRate() = LittleEndianToBigEndian(25);
+	strh.dwStart() = 0;
+	strh.dwLength() = LittleEndianToBigEndian(frames / 25);
+	strh.dwSuggestedBufferSize() = 0;
+	strh.dwQuality() = LittleEndianToBigEndian(-1);
+	strh.dwSampleSize() = 0;
+	strh.rcFrame() = RECT(0, 0, width, -1 * height);
 
 	memcpy(streamHeader.ckData.get(), strh.fccHandler, sizeof(uint32_t));
 	memcpy(streamHeader.ckData.get(), strh.dwFlags, sizeof(uint32_t));

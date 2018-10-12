@@ -23,6 +23,11 @@ struct Chunk
 	{
 		return *reinterpret_cast<std::uint8_t*>(m_ptr + (m_offset + 8));
 	}
+	inline uint8_t& binaryData() const
+	{
+		return *reinterpret_cast<std::uint8_t*>(m_ptr);
+	}
+	static constexpr std::size_t binarySize = 8;
 private:
 	std::uint8_t* m_ptr = nullptr;
 	std::uint32_t m_offset = 0;
@@ -53,8 +58,12 @@ struct List
 	{
 		return *reinterpret_cast<std::uint8_t*>(m_ptr + (m_offset + 12));
 	}
+	inline uint8_t& binaryData() const
+	{
+		return *reinterpret_cast<std::uint8_t*>(m_ptr);
+	}
 	static constexpr std::uint32_t dwListID = 0x4C495354;
-
+	static constexpr std::size_t binarySize = 12;
 private:
 	std::uint8_t* m_ptr = nullptr;
 	std::uint32_t m_offset = 0;
@@ -118,8 +127,12 @@ struct MainAVIHeader
 	{
 		return *reinterpret_cast<std::int32_t*>(m_ptr + (m_offset + 44));
 	}
+	inline uint8_t& binaryData() const
+	{
+		return *reinterpret_cast<std::uint8_t*>(m_ptr);
+	}
 	static constexpr std::uint32_t FCC = 0x61766968;
-
+	static constexpr std::size_t binarySize = 48;
 private:
 	std::uint8_t* m_ptr = nullptr;
 	std::uint32_t m_offset = 0;
@@ -227,10 +240,28 @@ struct AVIStreamHeader
 	{
 		return *reinterpret_cast<std::int32_t*>(m_ptr + (m_offset + 44));
 	}
-	inline int32_t& rcFrame() const
+	inline long& rectLeft() const
 	{
-		return *reinterpret_cast<std::int32_t*>(m_ptr + (m_offset + 48));
+		return *reinterpret_cast<long*>(m_ptr + (m_offset + 48));
 	}
+	inline long& rectTop() const
+	{
+		return *reinterpret_cast<long*>(m_ptr + (m_offset + 48 + sizeof(long)));
+	}
+	inline long& rectRight() const
+	{
+		return *reinterpret_cast<long*>(m_ptr + (m_offset + 48 + 2 * sizeof(long)));
+	}
+	inline long& rectBottom() const
+	{
+		return *reinterpret_cast<long*>(m_ptr + (m_offset + 48 + 3 * sizeof(long)));
+	}
+	inline uint8_t& binaryData() const
+	{
+		return *reinterpret_cast<std::uint8_t*>(m_ptr);
+	}
+	static constexpr std::size_t binarySize = 48 + 4 * sizeof(long);
+
 	static constexpr std::uint32_t FCCType = 0x76696473;
 
 private:
