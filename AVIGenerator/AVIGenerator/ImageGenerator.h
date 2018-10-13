@@ -10,7 +10,7 @@ struct RGBTRIPLE
 struct BitmapInfoHeaderPtr
 {
 	BitmapInfoHeaderPtr() = default;
-	BitmapInfoHeaderPtr(std::uint8_t* pBuf, std::uint32_t offset = 0) :m_ptr(pBuf), m_offset(offset) {}
+	BitmapInfoHeaderPtr(std::uint8_t* pBuf, std::uint32_t offset = 0) :m_ptr(pBuf + offset) {}
 	inline std::uint32_t& Size() const
 	{
 		return *reinterpret_cast<std::uint32_t*>(m_ptr + m_offset);

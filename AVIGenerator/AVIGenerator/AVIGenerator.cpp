@@ -32,16 +32,17 @@ struct LE_BE_conversion
 };
 
 template <class T>
-constexpr auto LittleEndianToBigEndian(T num) noexcept -> std::enable_if_t<sizeof(T) == 1, T>
+constexpr auto le2be(T num) noexcept -> std::enable_if_t<sizeof(T) == 1, T>
 {
 	return num;
 }
 
 template <class T>
-constexpr auto LittleEndianToBigEndian(T num) noexcept -> std::enable_if_t<(sizeof(T) > 1), T>
+constexpr auto le2be(T num) noexcept -> std::enable_if_t<(sizeof(T) > 1), T>
 {
-	return T(LittleEndianToBigEndian(typename LE_BE_conversion<T>::half_type(typename LE_BE_conversion<T>::internal_type(num) >> (sizeof(T) * 4)) |
-		LittleEndianToBigEndian(typename LE_BE_conversion<T>::half_type(num))));
+	typedef LE_BE_conversion<T> converter;
+	return T(typename converter::internal_type(le2be(typename converter::half_type(typename LE_BE_conversion<T>::internal_type(num) >> (sizeof(T) * 4)))) |
+		typename converter::internal_type(le2be(typename LE_BE_conversion<T>::half_type(num))) << (sizeof(T) * 4));
 }
 
 struct avi_file_handle_close
@@ -79,21 +80,21 @@ template <class Caller>
 void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsigned height, unsigned frames, double val_min, double val_max, bool discard_file)
 {
 	Chunk RIFF;
-	RIFF.ckID = LittleEndianToBigEndian(0x52494646); //'RIFF'
+	RIFF.ckID = le2be(0x52494646); //'RIFF'
 	Chunk AVI;
-	AVI.ckID = LittleEndianToBigEndian(0x415564920); //'AVI '
+	AVI.ckID = le2be(0x415564920); //'AVI '
 
 	List hdrl;
-	hdrl.listType = LittleEndianToBigEndian(0x6864726c); //'hdrl'
+	hdrl.listType = le2be(0x6864726c); //'hdrl'
 	MainAVIHeader mainAVI;
 	List strl;
-	strl.listType = LittleEndianToBigEndian(0x7374726c); //'strl'
+	strl.listType = le2be(0x7374726c); //'strl'
 	Chunk streamHeader;
-	streamHeader.ckID = LittleEndianToBigEndian(0x73747268); //'strh'
+	streamHeader.ckID = le2be(0x73747268); //'strh'
 	AVIStreamHeader strh;
-	streamHeader.ckSize = LittleEndianToBigEndian(sizeof(AVIStreamHeader));
+	streamHeader.ckSize = le2be(sizeof(AVIStreamHeader));
 	Chunk streamFormat;
-	streamFormat.ckID = LittleEndianToBigEndian(0x73747266); //'strf'
+	streamFormat.ckID = le2be(0x73747266); //'strf'
 	BitmapInfoHeaderPtr bmInfo;
 
 	//STRH
@@ -102,40 +103,23 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	strh.wPriority() = 0;
 	strh.wLanguage() = 0;
 	strh.dwInitialFrames() = 0;
-	strh.dwScale() = LittleEndianToBigEndian(frames / 25);
-	strh.dwRate() = LittleEndianToBigEndian(25);
+	strh.dwScale() = le2be(frames / 25);
+	strh.dwRate() = le2be(25);
 	strh.dwStart() = 0;
-	strh.dwLength() = LittleEndianToBigEndian(frames / 25);
+	strh.dwLength() = le2be(frames / 25);
 	strh.dwSuggestedBufferSize() = 0;
-	strh.dwQuality() = LittleEndianToBigEndian(-1);
+	strh.dwQuality() = le2be(-1);
 	strh.dwSampleSize() = 0;
 	strh.rcFrame() = RECT(0, 0, width, -1 * height);
-
-	memcpy(streamHeader.ckData.get(), strh.fccHandler, sizeof(uint32_t));
-	memcpy(streamHeader.ckData.get(), strh.dwFlags, sizeof(uint32_t));
-	memcpy(streamHeader.ckData.get(), strh.wPriority, sizeof(uint16_t));
-	memcpy(streamHeader.ckData.get(), strh.wLanguage, sizeof(uint16_t));
-	memcpy(streamHeader.ckData.get(), strh.dwInitialFrames, sizeof(uint32_t));
-	memcpy(streamHeader.ckData.get(), strh.dwScale, sizeof(uint32_t));
-	memcpy(streamHeader.ckData.get(), strh.dwRate, sizeof(uint32_t));
-	memcpy(streamHeader.ckData.get(), strh.dwStart, sizeof(uint32_t));
-	memcpy(streamHeader.ckData.get(), strh.dwLength, sizeof(uint32_t));
-	memcpy(streamHeader.ckData.get(), strh.dwSuggestedBufferSize, sizeof(uint32_t));
-	memcpy(streamHeader.ckData.get(), strh.dwQuality, sizeof(uint32_t));
-	memcpy(streamHeader.ckData.get(), strh.dwSampleSize, sizeof(uint32_t));
-	memcpy(streamHeader.ckData.get(), strh.rcFrame.left, sizeof(long));
-	memcpy(streamHeader.ckData.get(), strh.rcFrame.top, sizeof(long));
-	memcpy(streamHeader.ckData.get(), strh.rcFrame.right, sizeof(long));
-	memcpy(streamHeader.ckData.get(), strh.rcFrame.bottom, sizeof(long));
 
 	//STRF
 	streamFormat.ckSize = bmInfo.size;
 
-	bmInfo->biSize = LittleEndianToBigEndian(40);
-	bmInfo->biWidth = LittleEndianToBigEndian((std::uint32_t) width);
-	bmInfo->biHeight = LittleEndianToBigEndian((std::uint32_t) height);
-	bmInfo->biPlanes = LittleEndianToBigEndian(1);
-	bmInfo->biBitCount = LittleEndianToBigEndian(24);
+	bmInfo->biSize = le2be(40);
+	bmInfo->biWidth = le2be((std::uint32_t) width);
+	bmInfo->biHeight = le2be((std::uint32_t) height);
+	bmInfo->biPlanes = le2be(1);
+	bmInfo->biBitCount = le2be(24);
 	bmInfo->biCompression = 0;
 	bmInfo->biSizeImage = 0;
 	bmInfo->biXPelsPerMeter = 0;
@@ -162,15 +146,15 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 
 	//MOVI
 	List movi;
-	movi.listType = LittleEndianToBigEndian(0x6d6f7669); //'movi'
+	movi.listType = le2be(0x6d6f7669); //'movi'
 
 	Chunk frame;
-	frame.ckID = LittleEndianToBigEndian(0x00006462);
-	frame.ckSize = LittleEndianToBigEndian((frames * 24 * width + std::uint32_t(width & 3)) * height);
+	frame.ckID = le2be(0x00006462);
+	frame.ckSize = le2be((frames * 24 * width + std::uint32_t(width & 3)) * height);
 	generateFrames(width, height, get_value, frames, val_min, val_max, frame.ckData);
 
 	memcpy(movi.listData.get(), &frame, sizeof(frame));
-	movi.listSize = LittleEndianToBigEndian(sizeof(frame) + sizeof(movi.listType));
+	movi.listSize = le2be(sizeof(frame) + sizeof(movi.listType));
 	
 	std::uint32_t fcc = 0x61766968; // avih
 	std::uint32_t cb; //= sizeof(MainAVIHeader) - 8; 
