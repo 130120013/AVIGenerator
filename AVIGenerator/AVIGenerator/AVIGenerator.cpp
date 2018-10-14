@@ -1,5 +1,6 @@
 #include "AVIGenerator.h"
 #include <type_traits>
+#include <stdexcept>
 
 template <class T>
 struct LE_BE_conversion
@@ -76,13 +77,30 @@ bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigne
 	return true;
 }
 
+constexpr std::uint32_t make_fcc(char b0, char b1, char b2, char b3)
+{
+	return (std::uint32_t(b3) << 24) | (std::uint32_t(b2 << 16) ) | (std::uint32_t(b1 << 8) ) | (std::uint32_t(b0));
+}
+
+template <std::size_t N>
+constexpr auto make_fcc(const char (&fcc_str)[N]) -> std::enable_if_t<N == 5, std::uint32_t>
+{
+	return fcc_str[5 - 1] == '\0' ? make_fcc(fcc_str[0], fcc_str[1], fcc_str[2], fcc_str[3]) : throw std::invalid_argument("Invalid FCC identifuer");
+}
+
+template <std::size_t N>
+constexpr auto make_fcc(const char(&fcc_str)[N]) -> std::enable_if_t<N == 4, std::uint32_t>
+{
+	return fcc_str[3] != '\0' ? make_fcc(fcc_str[0], fcc_str[1], fcc_str[2], fcc_str[3]) : throw std::invalid_argument("Invalid FCC identifuer");
+}
+
 template <class Caller>
 void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsigned height, unsigned frames, double val_min, double val_max, bool discard_file)
 {
 	Chunk RIFF;
-	RIFF.chunk_id() = le2be(0x52494646); //'RIFF'
+	RIFF.chunk_id() = make_fcc("RIFF");
 	Chunk AVI;
-	AVI.chunk_id() = le2be(0x415564920); //'AVI '
+	AVI.chunk_id() = make_fcc("AVI "); //'AVI '
 
 	List hdrl;
 	hdrl.chunk_id() = le2be(hdrl.LIST_ID);
@@ -91,11 +109,11 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	List strl;
 	strl.chunk_id() = le2be(strl.LIST_ID);
 	strl.list_type() = le2be(0x7374726c); //'strl'
-	Chunk streamHeader;
+	Chunk streamHeader; //delete
 	streamHeader.chunk_id() = le2be(0x73747268); //'strh'
-	AVIStreamHeader strh;
+	AVIStreamHeader strh(strl.list_data(), 0);
 
-	Chunk streamFormat;
+	Chunk streamFormat(strl.list_data(), sizeof(strh));
 	streamFormat.chunk_id() = le2be(0x73747266); //'strf'
 	BitmapInfoHeaderPtr bmInfo;
 

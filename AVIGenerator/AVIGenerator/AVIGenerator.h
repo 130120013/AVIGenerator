@@ -46,9 +46,9 @@ struct List: Chunk
 	{
 		return *reinterpret_cast<std::int32_t*>(this->chunk_data());
 	}
-	inline std::uint8_t& list_data() const
+	inline std::uint8_t* list_data() const
 	{
-		return *reinterpret_cast<std::uint8_t*>(this->chunk_data() + 4);
+		return this->chunk_data() + 4;
 	}
 	static constexpr std::uint32_t LIST_ID = 0x4C495354;
 private:
