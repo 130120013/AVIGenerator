@@ -80,21 +80,23 @@ template <class Caller>
 void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsigned height, unsigned frames, double val_min, double val_max, bool discard_file)
 {
 	Chunk RIFF;
-	RIFF.ckID = le2be(0x52494646); //'RIFF'
+	RIFF.chunk_id() = le2be(0x52494646); //'RIFF'
 	Chunk AVI;
-	AVI.ckID = le2be(0x415564920); //'AVI '
+	AVI.chunk_id() = le2be(0x415564920); //'AVI '
 
 	List hdrl;
-	hdrl.listType = le2be(0x6864726c); //'hdrl'
+	hdrl.chunk_id() = le2be(hdrl.LIST_ID);
+	hdrl.list_type() = le2be(0x6864726c); //'hdrl'
 	MainAVIHeader mainAVI;
 	List strl;
-	strl.listType = le2be(0x7374726c); //'strl'
+	strl.chunk_id() = le2be(strl.LIST_ID);
+	strl.list_type() = le2be(0x7374726c); //'strl'
 	Chunk streamHeader;
-	streamHeader.ckID = le2be(0x73747268); //'strh'
+	streamHeader.chunk_id() = le2be(0x73747268); //'strh'
 	AVIStreamHeader strh;
-	streamHeader.ckSize = le2be(sizeof(AVIStreamHeader));
+
 	Chunk streamFormat;
-	streamFormat.ckID = le2be(0x73747266); //'strf'
+	streamFormat.chunk_id() = le2be(0x73747266); //'strf'
 	BitmapInfoHeaderPtr bmInfo;
 
 	//STRH
@@ -110,65 +112,46 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	strh.dwSuggestedBufferSize() = 0;
 	strh.dwQuality() = le2be(-1);
 	strh.dwSampleSize() = 0;
-	strh.rcFrame() = RECT(0, 0, width, -1 * height);
+	strh.rect() = RECT(0, 0, le2be(width), le2be(-1 * height));
 
+	streamHeader.chunk_size() = le2be(sizeof(AVIStreamHeader));
+	streamHeader.chunk_data() = strh.data();
+	
 	//STRF
-	streamFormat.ckSize = bmInfo.size;
+	bmInfo.Size() = le2be(40);
+	bmInfo.Width() = le2be((std::uint32_t) width);
+	bmInfo.Height() = le2be((std::uint32_t) height);
+	bmInfo.Plains() = le2be(1);
+	bmInfo.BitCount() = le2be(24);
+	bmInfo.Compression() = 0;
+	bmInfo.SizeImage() = 0;
+	bmInfo.XPelsPerMeter() = 0;
+	bmInfo.YPelsPerMeter() = 0;
+	bmInfo.ClrUsed() = 0;
+	bmInfo.ClrImportant() = 0;
 
-	bmInfo->biSize = le2be(40);
-	bmInfo->biWidth = le2be((std::uint32_t) width);
-	bmInfo->biHeight = le2be((std::uint32_t) height);
-	bmInfo->biPlanes = le2be(1);
-	bmInfo->biBitCount = le2be(24);
-	bmInfo->biCompression = 0;
-	bmInfo->biSizeImage = 0;
-	bmInfo->biXPelsPerMeter = 0;
-	bmInfo->biYPelsPerMeter = 0;
-	bmInfo->biClrUsed = 0;
-	bmInfo->biClrImportant = 0;
+	streamFormat.chunk_size() = bmInfo.size;
+	streamFormat.chunk_data() = bmInfo.data();
 
-	memcpy(streamFormat.ckData.get(), &bmInfo->biSize, sizeof(bmInfo->biSize));
-	memcpy(streamFormat.ckData.get(), &bmInfo->biWidth, sizeof(bmInfo->biWidth));
-	memcpy(streamFormat.ckData.get(), &bmInfo->biHeight, sizeof(bmInfo->biHeight));
-	memcpy(streamFormat.ckData.get(), &bmInfo->biPlanes, sizeof(bmInfo->biPlanes));
-	memcpy(streamFormat.ckData.get(), &bmInfo->biBitCount, sizeof(bmInfo->biBitCount));
-	memcpy(streamFormat.ckData.get(), &bmInfo->biCompression, sizeof(bmInfo->biCompression));
-	memcpy(streamFormat.ckData.get(), &bmInfo->biSizeImage, sizeof(bmInfo->biSizeImage));
-	memcpy(streamFormat.ckData.get(), &bmInfo->biXPelsPerMeter, sizeof(bmInfo->biXPelsPerMeter));
-	memcpy(streamFormat.ckData.get(), &bmInfo->biYPelsPerMeter, sizeof(bmInfo->biYPelsPerMeter));
-	memcpy(streamFormat.ckData.get(), &bmInfo->biClrUsed, sizeof(bmInfo->biClrUsed));
-	memcpy(streamFormat.ckData.get(), &bmInfo->biClrImportant, sizeof(bmInfo->biClrImportant));
-		   
 	//STRL
+	strl.list_data() = streamHeader.data();
+
 	memcpy(strl.listData.get(), &streamHeader.ckID, sizeof(streamHeader.ckID));
 	memcpy(strl.listData.get(), &streamHeader.ckSize, sizeof(streamHeader.ckSize));
 	memcpy(strl.listData.get(), &streamHeader.ckData, streamHeader.ckSize);
 
 	//MOVI
 	List movi;
-	movi.listType = le2be(0x6d6f7669); //'movi'
+	movi.chunk_id() = le2be(movi.LIST_ID);
+	movi.list_type() = le2be(0x6d6f7669); //'movi'
 
 	Chunk frame;
-	frame.ckID = le2be(0x00006462);
-	frame.ckSize = le2be((frames * 24 * width + std::uint32_t(width & 3)) * height);
-	generateFrames(width, height, get_value, frames, val_min, val_max, frame.ckData);
+	frame.chunk_id() = le2be(0x00006462);
+	frame.chunk_size() = le2be((frames * 24 * width + std::uint32_t(width & 3)) * height);
+	generateFrames(width, height, get_value, frames, val_min, val_max, frame.chunk_data());
 
-	memcpy(movi.listData.get(), &frame, sizeof(frame));
-	movi.listSize = le2be(sizeof(frame) + sizeof(movi.listType));
-	
-	std::uint32_t fcc = 0x61766968; // avih
-	std::uint32_t cb; //= sizeof(MainAVIHeader) - 8; 
-	std::uint32_t dwMicroSecPerFrame;
-	std::uint32_t dwMaxBytesPerSec;
-	std::uint32_t dwPaddingGranularity;
-	std::uint32_t dwFlags;
-	std::uint32_t dwTotalFrames;
-	std::uint32_t dwInitialFrames;
-	std::uint32_t dwStreams;
-	std::uint32_t dwSuggestedBufferSize;
-	std::uint32_t dwWidth;
-	std::uint32_t dwHeight;
-	std::uint32_t dwReserved[4];
+	movi.chunk_size() = le2be(frame.chunk_size() + sizeof(frame.chunk_id()) + sizeof(movi.list_type()));
+	movi.chunk_data() = frame.data();
 
 	auto aviFile = unique_avi_file_handle(std::fopen("animated.avi", "wb"));
 	if (bool(aviFile) && !discard_file)

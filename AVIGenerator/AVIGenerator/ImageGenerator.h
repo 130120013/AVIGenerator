@@ -55,6 +55,10 @@ struct BitmapInfoHeaderPtr
 	{
 		return *reinterpret_cast<std::uint32_t*>(m_ptr + (m_offset + 36));
 	}
+	inline std::uint8_t* data() const
+	{
+		return m_ptr;
+	}
 	static constexpr std::uint32_t size = 40;
 private:
 	std::uint8_t* m_ptr = nullptr;
