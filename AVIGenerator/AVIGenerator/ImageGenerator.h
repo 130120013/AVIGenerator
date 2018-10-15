@@ -1,59 +1,61 @@
 #include <cstdint>
 #ifndef IMAGE_GENERATOR
 #define IMAGE_GENERATOR
+
 struct RGBTRIPLE
 {
 	std::uint8_t rgbBlue;
 	std::uint8_t rgbGreen;
 	std::uint8_t rgbRed;
 };
+
 struct BitmapInfoHeaderPtr
 {
 	BitmapInfoHeaderPtr() = default;
 	BitmapInfoHeaderPtr(std::uint8_t* pBuf, std::uint32_t offset = 0) :m_ptr(pBuf + offset) {}
 	inline std::uint32_t& Size() const
 	{
-		return *reinterpret_cast<std::uint32_t*>(m_ptr + m_offset);
+		return *reinterpret_cast<std::uint32_t*>(this->data());
 	}
 	inline std::int32_t& Width() const
 	{
-		return *reinterpret_cast<std::int32_t*>(m_ptr + (m_offset + 4));
+		return *reinterpret_cast<std::int32_t*>(this->data() + 4);
 	}
 	inline std::int32_t& Height() const
 	{
-		return *reinterpret_cast<std::int32_t*>(m_ptr + (m_offset + 8));
+		return *reinterpret_cast<std::int32_t*>(this->data() + 8);
 	}
 	inline std::uint16_t& Plains() const
 	{
-		return *reinterpret_cast<std::uint16_t*>(m_ptr + (m_offset + 12));
+		return *reinterpret_cast<std::uint16_t*>(this->data() + 12);
 	}
 	inline std::uint16_t& BitCount() const
 	{
-		return *reinterpret_cast<std::uint16_t*>(m_ptr + (m_offset + 14));
+		return *reinterpret_cast<std::uint16_t*>(this->data() + 14);
 	}
 	inline std::uint32_t& Compression() const
 	{
-		return *reinterpret_cast<std::uint32_t*>(m_ptr + (m_offset + 16));
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 16);
 	}
 	inline std::uint32_t& SizeImage() const
 	{
-		return *reinterpret_cast<std::uint32_t*>(m_ptr + (m_offset + 20));
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 20);
 	}
-	inline std::int32_t& XPelsPerMeter() const
+	inline std::uint32_t& XPelsPerMeter() const
 	{
-		return *reinterpret_cast<std::int32_t*>(m_ptr + (m_offset + 24));
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 24);
 	}
-	inline std::int32_t& YPelsPerMeter() const
+	inline std::uint32_t& YPelsPerMeter() const
 	{
-		return *reinterpret_cast<std::int32_t*>(m_ptr + (m_offset + 28));
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 28);
 	}
 	inline std::uint32_t& ClrUsed() const
 	{
-		return *reinterpret_cast<std::uint32_t*>(m_ptr + (m_offset + 32));
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 32);
 	}
 	inline std::uint32_t& ClrImportant() const
 	{
-		return *reinterpret_cast<std::uint32_t*>(m_ptr + (m_offset + 36));
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 36);
 	}
 	inline std::uint8_t* data() const
 	{
@@ -62,7 +64,6 @@ struct BitmapInfoHeaderPtr
 	static constexpr std::uint32_t size = 40;
 private:
 	std::uint8_t* m_ptr = nullptr;
-	std::uint32_t m_offset = 0;
 };
 
 #define RANGES 8

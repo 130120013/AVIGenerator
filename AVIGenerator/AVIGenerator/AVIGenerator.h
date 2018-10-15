@@ -11,13 +11,13 @@ struct Chunk
 	Chunk() = default;
 	Chunk(std::uint8_t* pBuf, std::uint32_t offset = 0) :m_ptr(pBuf + offset) {}
 
-	inline std::int32_t& chunk_id() const
+	inline std::uint32_t& chunk_id() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data());
+		return *reinterpret_cast<std::uint32_t*>(this->data());
 	}
-	inline std::int32_t& chunk_size() const
+	inline std::uint32_t& chunk_size() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + 4);
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 4);
 	}
 	inline std::uint8_t* chunk_data() const
 	{
@@ -42,9 +42,9 @@ struct List: Chunk
 	List() = default;
 	List(std::uint8_t* pBuf, std::uint32_t offset = 0) :Chunk(pBuf, offset){}
 
-	inline std::int32_t& list_type() const
+	inline std::uint32_t& list_type() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->chunk_data());
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data());
 	}
 	inline std::uint8_t* list_data() const
 	{
@@ -61,45 +61,45 @@ struct MainAVIHeader:Chunk
 	MainAVIHeader() = default;
 	MainAVIHeader(std::uint8_t* pBuf, std::uint32_t offset = 0) :Chunk(pBuf, offset){}
 
-	inline std::int32_t& dwMicroSecPerFrame() const
+	inline std::uint32_t& dwMicroSecPerFrame() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->chunk_data());
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data());
 	}
-	inline std::int32_t& dwMaxBytesPerSec() const
+	inline std::uint32_t& dwMaxBytesPerSec() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->chunk_data() + 4);
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 4);
 	}
-	inline std::int32_t& dwPaddingGranularity() const
+	inline std::uint32_t& dwPaddingGranularity() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->chunk_data() + 8);
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 8);
 	}
-	inline std::int32_t& dwFlags() const
+	inline std::uint32_t& dwFlags() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->chunk_data() + 12);
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 12);
 	}
-	inline std::int32_t& dwTotalFrames() const
+	inline std::uint32_t& dwTotalFrames() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->chunk_data() + 16);
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 16);
 	}
-	inline std::int32_t& dwInitialFrames() const
+	inline std::uint32_t& dwInitialFrames() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->chunk_data() + 20);
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 20);
 	}
-	inline std::int32_t& dwStreams() const
+	inline std::uint32_t& dwStreams() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->chunk_data() + 24);
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 24);
 	}
-	inline std::int32_t& dwSuggestedBufferSize() const
+	inline std::uint32_t& dwSuggestedBufferSize() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->chunk_data() + 28);
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 28);
 	}
 	inline std::int32_t& dwWidth() const
 	{
 		return *reinterpret_cast<std::int32_t*>(this->chunk_data() + 32);
 	}
-	inline std::int32_t& dwReserved() const
+	inline std::uint32_t& dwReserved() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->chunk_data() + 36);
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 36);
 	}
 	static constexpr std::uint32_t FCC = 0x61766968;
 private:
@@ -120,7 +120,7 @@ struct RECT
 	}
 	inline std::int32_t& top() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + sizeof(std::int32_t)));
+		return *reinterpret_cast<std::int32_t*>(this->data() + sizeof(std::int32_t));
 	}
 	inline std::int32_t& right() const
 	{
@@ -134,14 +134,14 @@ struct RECT
 	{
 		return m_ptr;
 	}
-	inline std::size_t size() const
+	static std::size_t size() 
 	{
 		return STRUCT_SIZE;
 	}
 
 private:
 	std::uint8_t* m_ptr = nullptr;
-	static constexpr std::size_t STRUCT_SIZE = sizeof(std::int32_t) * 4;
+	static constexpr std::size_t STRUCT_SIZE = sizeof(std::uint32_t) * 4;
 };
 
 struct AVIStreamHeader
@@ -152,57 +152,57 @@ struct AVIStreamHeader
 		//this->fccType() = FCCType;
 	}
 
-	inline std::int32_t& fccType() const
+	inline std::uint32_t& fccType() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data());
+		return *reinterpret_cast<std::uint32_t*>(this->data());
 	}
-	inline std::int32_t& fccHandler() const
+	inline std::uint32_t& fccHandler() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + 4);
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 4);
 	}
-	inline std::int32_t& dwFlags() const
+	inline std::uint32_t& dwFlags() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + 8);
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 8);
 	}
-	inline std::int16_t& wPriority() const
+	inline std::uint16_t& wPriority() const
 	{
-		return *reinterpret_cast<std::int16_t*>(this->data() + 12);
+		return *reinterpret_cast<std::uint16_t*>(this->data() + 12);
 	}
-	inline std::int16_t& wLanguage() const
+	inline std::uint16_t& wLanguage() const
 	{
-		return *reinterpret_cast<std::int16_t*>(this->data() + 14);
+		return *reinterpret_cast<std::uint16_t*>(this->data() + 14);
 	}
-	inline std::int32_t& dwInitialFrames() const
+	inline std::uint32_t& dwInitialFrames() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + 16);
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 16);
 	}
-	inline std::int32_t& dwScale() const
+	inline std::uint32_t& dwScale() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + 20);
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 20);
 	}
-	inline std::int32_t& dwRate() const
+	inline std::uint32_t& dwRate() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + 24);
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 24);
 	}
-	inline std::int32_t& dwStart() const
+	inline std::uint32_t& dwStart() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + 28);
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 28);
 	}
-	inline std::int32_t& dwLength() const
+	inline std::uint32_t& dwLength() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + 32);
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 32);
 	}
-	inline std::int32_t& dwSuggestedBufferSize() const
+	inline std::uint32_t& dwSuggestedBufferSize() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + 36);
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 36);
 	}
-	inline std::int32_t& dwQuality() const
+	inline std::uint32_t& dwQuality() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + 40);
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 40);
 	}
-	inline std::int32_t& dwSampleSize() const
+	inline std::uint32_t& dwSampleSize() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + 44);
+		return *reinterpret_cast<std::uint32_t*>(this->data() + 44);
 	}
 	inline RECT rect() const
 	{
@@ -212,7 +212,7 @@ struct AVIStreamHeader
 	{
 		return m_ptr;
 	}
-	inline std::size_t size() const
+	static std::size_t size() 
 	{
 		return STRUCT_SIZE;
 	}

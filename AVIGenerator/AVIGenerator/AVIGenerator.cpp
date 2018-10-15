@@ -103,18 +103,18 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	AVI.chunk_id() = make_fcc("AVI "); //'AVI '
 
 	List hdrl;
-	hdrl.chunk_id() = le2be(hdrl.LIST_ID);
-	hdrl.list_type() = le2be(0x6864726c); //'hdrl'
+	hdrl.chunk_id() = make_fcc("LIST");
+	hdrl.list_type() = make_fcc("hdrl"); //'hdrl'
 	MainAVIHeader mainAVI;
-	List strl;
-	strl.chunk_id() = le2be(strl.LIST_ID);
-	strl.list_type() = le2be(0x7374726c); //'strl'
-	Chunk streamHeader; //delete
-	streamHeader.chunk_id() = le2be(0x73747268); //'strh'
-	AVIStreamHeader strh(strl.list_data(), 0);
+	List strl(new std::uint8_t[AVIStreamHeader::size() + BitmapInfoHeaderPtr::size]);
+	strl.chunk_id() = make_fcc("LIST");
+	strl.list_type() = make_fcc("strl"); //'strl'
+	Chunk streamHeader(strl.list_data());
+	streamHeader.chunk_id() = make_fcc("strh"); //'strh'
+	AVIStreamHeader strh(streamHeader.list_data());
 
-	Chunk streamFormat(strl.list_data(), sizeof(strh));
-	streamFormat.chunk_id() = le2be(0x73747266); //'strf'
+	Chunk streamFormat(strl.list_data(), sizeof(streamHeader) + streamHeader.chunk_size());
+	streamFormat.chunk_id() = make_fcc("strf"); //'strf'
 	BitmapInfoHeaderPtr bmInfo;
 
 	//STRH
@@ -160,11 +160,11 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 
 	//MOVI
 	List movi;
-	movi.chunk_id() = le2be(movi.LIST_ID);
-	movi.list_type() = le2be(0x6d6f7669); //'movi'
+	movi.chunk_id() = make_fcc("LIST");
+	movi.list_type() = make_fcc("movi"); //'movi'
 
 	Chunk frame;
-	frame.chunk_id() = le2be(0x00006462);
+	frame.chunk_id() = make_fcc("00db");
 	frame.chunk_size() = le2be((frames * 24 * width + std::uint32_t(width & 3)) * height);
 	generateFrames(width, height, get_value, frames, val_min, val_max, frame.chunk_data());
 
