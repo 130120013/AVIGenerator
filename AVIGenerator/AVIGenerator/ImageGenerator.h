@@ -61,7 +61,7 @@ struct BitmapInfoHeaderPtr
 	{
 		return m_ptr;
 	}
-	static constexpr std::uint32_t size = 40;
+	static constexpr std::uint32_t STRUCT_SIZE = 40;
 private:
 	std::uint8_t* m_ptr = nullptr;
 };

@@ -29,12 +29,11 @@ struct Chunk
 	}
 	inline std::size_t size() const
 	{
-		return STRUCT_SIZE + this->chunk_size();
+		return STRUCT_SIZE + chunk_size();
 	}
-
+	static constexpr std::size_t STRUCT_SIZE = 8;
 private:
 	std::uint8_t* m_ptr = nullptr;
-	static constexpr std::size_t STRUCT_SIZE = 8;
 };
 
 struct List: Chunk
@@ -51,9 +50,9 @@ struct List: Chunk
 		return this->chunk_data() + 4;
 	}
 	static constexpr std::uint32_t LIST_ID = 0x4C495354;
+	static constexpr std::size_t STRUCT_SIZE = 12;
 private:
 	std::uint8_t* m_ptr = nullptr;
-	static constexpr std::size_t STRUCT_SIZE = 12;
 };
 
 struct MainAVIHeader:Chunk
@@ -93,18 +92,22 @@ struct MainAVIHeader:Chunk
 	{
 		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 28);
 	}
-	inline std::int32_t& dwWidth() const
+	inline std::uint32_t& dwWidth() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->chunk_data() + 32);
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 32);
 	}
-	inline std::uint32_t& dwReserved() const
+	inline std::uint32_t& dwHeight() const
+	{
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 32);
+	}
+	inline std::uint32_t& dwReserved() const //dwReserved[4];
 	{
 		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 36);
 	}
 	static constexpr std::uint32_t FCC = 0x61766968;
+	static constexpr std::size_t STRUCT_SIZE = 60;
 private:
 	std::uint8_t* m_ptr = nullptr;
-	static constexpr std::size_t STRUCT_SIZE = 48;
 };
 
 /////////////
@@ -134,14 +137,13 @@ struct RECT
 	{
 		return m_ptr;
 	}
-	static std::size_t size() 
+	inline std::size_t size() const
 	{
 		return STRUCT_SIZE;
 	}
-
+	static constexpr std::size_t STRUCT_SIZE = sizeof(std::uint32_t) * 4;
 private:
 	std::uint8_t* m_ptr = nullptr;
-	static constexpr std::size_t STRUCT_SIZE = sizeof(std::uint32_t) * 4;
 };
 
 struct AVIStreamHeader
@@ -212,14 +214,14 @@ struct AVIStreamHeader
 	{
 		return m_ptr;
 	}
-	static std::size_t size() 
+	inline std::size_t size() const
 	{
 		return STRUCT_SIZE;
 	}
 	static constexpr std::uint32_t FCC = 0x76696473;
+	static constexpr std::size_t STRUCT_SIZE = 48 + 4 * sizeof(long);
 private:
 	std::uint8_t* m_ptr = nullptr;
-	static constexpr std::size_t STRUCT_SIZE = 48 + 4 * sizeof(long);
 };
 
 #endif // !AVI_GENERATOR

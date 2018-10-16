@@ -97,25 +97,56 @@ constexpr auto make_fcc(const char(&fcc_str)[N]) -> std::enable_if_t<N == 4, std
 template <class Caller>
 void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsigned height, unsigned frames, double val_min, double val_max, bool discard_file)
 {
-	Chunk RIFF;
+	auto aviFile = unique_avi_file_handle(std::fopen("animated.avi", "wb"));
+	if (bool(aviFile) && !discard_file)
+		return;
+
+	//RIFF	
+	std::size_t strlBufferSize = List::STRUCT_SIZE + 2 * Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE + BitmapInfoHeaderPtr::STRUCT_SIZE;
+	std::size_t hdrlBufferSize = List::STRUCT_SIZE + MainAVIHeader::STRUCT_SIZE + strlBufferSize;
+
+	Chunk RIFF(new std::uint8_t[2 * Chunk::STRUCT_SIZE + hdrlBufferSize]);
 	RIFF.chunk_id() = make_fcc("RIFF");
-	Chunk AVI;
+	Chunk AVI(RIFF.chunk_data());
 	AVI.chunk_id() = make_fcc("AVI "); //'AVI '
 
-	List hdrl;
+	//hdrl
+	List hdrl(AVI.chunk_data());
 	hdrl.chunk_id() = make_fcc("LIST");
+	hdrl.chunk_size() = hdrlBufferSize;
 	hdrl.list_type() = make_fcc("hdrl"); //'hdrl'
-	MainAVIHeader mainAVI;
-	List strl(new std::uint8_t[AVIStreamHeader::size() + BitmapInfoHeaderPtr::size]);
-	strl.chunk_id() = make_fcc("LIST");
-	strl.list_type() = make_fcc("strl"); //'strl'
-	Chunk streamHeader(strl.list_data());
-	streamHeader.chunk_id() = make_fcc("strh"); //'strh'
-	AVIStreamHeader strh(streamHeader.list_data());
 
-	Chunk streamFormat(strl.list_data(), sizeof(streamHeader) + streamHeader.chunk_size());
+	//avih
+	MainAVIHeader mainAVI(hdrl.list_data(), 0);
+	mainAVI.chunk_id() = make_fcc("avih");
+	mainAVI.chunk_size() = MainAVIHeader::STRUCT_SIZE - Chunk::STRUCT_SIZE;
+	mainAVI.dwMicroSecPerFrame() = 0;
+	mainAVI.dwMaxBytesPerSec() = le2be((frames * 24 * width + std::uint32_t(width & 3)) * 25 * height);
+	mainAVI.dwPaddingGranularity() = le2be(4);
+	mainAVI.dwFlags() = 0;
+	mainAVI.dwTotalFrames() = le2be(frames / 25);
+	mainAVI.dwInitialFrames() = 0;
+	mainAVI.dwStreams() = le2be(1);
+	mainAVI.dwSuggestedBufferSize() = 0;
+	mainAVI.dwWidth() = le2be(width);
+	mainAVI.dwHeight() = le2be(height);
+	memcpy(mainAVI.dwReserved(), 0, 4 * sizeof(std::uint32_t));
+
+	//STRL 
+	List strl(hdrl.list_data(), MainAVIHeader::STRUCT_SIZE);
+	strl.chunk_id() = make_fcc("LIST");
+	strl.chunk_size() = strlBufferSize;
+	strl.list_type() = make_fcc("strl"); //'strl'
+	Chunk streamHeader(strl.list_data(), 0);
+	streamHeader.chunk_id() = make_fcc("strh"); //'strh'
+	streamHeader.chunk_size() = le2be(AVIStreamHeader::STRUCT_SIZE);
+	AVIStreamHeader strh(streamHeader.chunk_data());
+	strh.fccType() = make_fcc("vids");
+
+	Chunk streamFormat(strl.list_data(), Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE);
 	streamFormat.chunk_id() = make_fcc("strf"); //'strf'
-	BitmapInfoHeaderPtr bmInfo;
+	streamFormat.chunk_size() = BitmapInfoHeaderPtr::STRUCT_SIZE;
+	BitmapInfoHeaderPtr bmInfo(streamFormat.chunk_data());
 
 	//STRH
 	strh.fccHandler() = 0;
@@ -132,7 +163,6 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	strh.dwSampleSize() = 0;
 	strh.rect() = RECT(0, 0, le2be(width), le2be(-1 * height));
 
-	streamHeader.chunk_size() = le2be(sizeof(AVIStreamHeader));
 	streamHeader.chunk_data() = strh.data();
 	
 	//STRF
@@ -148,15 +178,7 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	bmInfo.ClrUsed() = 0;
 	bmInfo.ClrImportant() = 0;
 
-	streamFormat.chunk_size() = bmInfo.size;
 	streamFormat.chunk_data() = bmInfo.data();
-
-	//STRL
-	strl.list_data() = streamHeader.data();
-
-	memcpy(strl.listData.get(), &streamHeader.ckID, sizeof(streamHeader.ckID));
-	memcpy(strl.listData.get(), &streamHeader.ckSize, sizeof(streamHeader.ckSize));
-	memcpy(strl.listData.get(), &streamHeader.ckData, streamHeader.ckSize);
 
 	//MOVI
 	List movi;
@@ -170,12 +192,6 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 
 	movi.chunk_size() = le2be(frame.chunk_size() + sizeof(frame.chunk_id()) + sizeof(movi.list_type()));
 	movi.chunk_data() = frame.data();
-
-	auto aviFile = unique_avi_file_handle(std::fopen("animated.avi", "wb"));
-	if (bool(aviFile) && !discard_file)
-		return;
-
-
 }
 
 //void createAVI()
