@@ -49,11 +49,31 @@ struct List: Chunk
 	{
 		return this->chunk_data() + 4;
 	}
-	static constexpr std::uint32_t LIST_ID = 0x4C495354;
+	//static constexpr std::uint32_t LIST_ID = make_fcc("LIST");
 	static constexpr std::size_t STRUCT_SIZE = 12;
 private:
 	std::uint8_t* m_ptr = nullptr;
 };
+
+struct RIFFHeader : Chunk
+{
+	RIFFHeader() = default;
+	RIFFHeader(std::uint8_t* pBuf, std::uint32_t offset = 0) :Chunk(pBuf, offset) {}
+
+	inline std::uint32_t& file_type() const
+	{
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data());
+	}
+	inline std::uint8_t* file_data() const
+	{
+		return this->chunk_data() + 4;
+	}
+	//static constexpr std::uint32_t RIFF_ID = make_fcc("RIFF");
+	static constexpr std::size_t STRUCT_SIZE = 12;
+private:
+	std::uint8_t* m_ptr = nullptr;
+};
+
 
 struct MainAVIHeader:Chunk
 {
@@ -104,7 +124,7 @@ struct MainAVIHeader:Chunk
 	{
 		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 36);
 	}
-	static constexpr std::uint32_t FCC = 0x61766968;
+	//static constexpr std::uint32_t FCC = 0x61766968;
 	static constexpr std::size_t STRUCT_SIZE = 60;
 private:
 	std::uint8_t* m_ptr = nullptr;
@@ -218,7 +238,7 @@ struct AVIStreamHeader
 	{
 		return STRUCT_SIZE;
 	}
-	static constexpr std::uint32_t FCC = 0x76696473;
+	//static constexpr std::uint32_t FCC = 0x76696473;
 	static constexpr std::size_t STRUCT_SIZE = 48 + 4 * sizeof(long);
 private:
 	std::uint8_t* m_ptr = nullptr;

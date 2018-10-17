@@ -104,8 +104,9 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	//RIFF	
 	std::size_t strlBufferSize = List::STRUCT_SIZE + 2 * Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE + BitmapInfoHeaderPtr::STRUCT_SIZE;
 	std::size_t hdrlBufferSize = List::STRUCT_SIZE + MainAVIHeader::STRUCT_SIZE + strlBufferSize;
+	auto buff = std::make_unique<std::uint8_t[]>(2 * Chunk::STRUCT_SIZE + hdrlBufferSize);
 
-	Chunk RIFF(new std::uint8_t[2 * Chunk::STRUCT_SIZE + hdrlBufferSize]);
+	List RIFF(buff.get());
 	RIFF.chunk_id() = make_fcc("RIFF");
 	Chunk AVI(RIFF.chunk_data());
 	AVI.chunk_id() = make_fcc("AVI "); //'AVI '
@@ -130,7 +131,7 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	mainAVI.dwSuggestedBufferSize() = 0;
 	mainAVI.dwWidth() = le2be(width);
 	mainAVI.dwHeight() = le2be(height);
-	memcpy(mainAVI.dwReserved(), 0, 4 * sizeof(std::uint32_t));
+	memset(&mainAVI.dwReserved(), 0, 4 * sizeof(std::uint32_t));
 
 	//STRL 
 	List strl(hdrl.list_data(), MainAVIHeader::STRUCT_SIZE);
@@ -163,7 +164,7 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	strh.dwSampleSize() = 0;
 	strh.rect() = RECT(0, 0, le2be(width), le2be(-1 * height));
 
-	streamHeader.chunk_data() = strh.data();
+	//streamHeader.chunk_data() = strh.data();
 	
 	//STRF
 	bmInfo.Size() = le2be(40);
@@ -178,10 +179,10 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	bmInfo.ClrUsed() = 0;
 	bmInfo.ClrImportant() = 0;
 
-	streamFormat.chunk_data() = bmInfo.data();
+	//streamFormat.chunk_data() = bmInfo.data();
 
 	//MOVI
-	List movi;
+	List movi(RIFF.);
 	movi.chunk_id() = make_fcc("LIST");
 	movi.list_type() = make_fcc("movi"); //'movi'
 
