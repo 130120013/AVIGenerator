@@ -67,11 +67,11 @@ bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigne
 		{
 			for (unsigned k = 0; k < width; ++k)
 			{
-				bool successCode = ValToRGB(get_value(k, l, f), val_min, val_max, (RGBTRIPLE*) frData);
+				bool successCode = ValToRGB(get_value(k, l, f), val_min, val_max, (RGBTRIPLE*)frData);
 				if (!successCode)
 					return false;
 			}
-			memcpy(frData.get(), 0, cbPadding));
+			memcpy(frData, 0, cbPadding);
 		}
 	}
 	return true;
@@ -104,15 +104,16 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	//RIFF	
 	std::size_t strlBufferSize = List::STRUCT_SIZE + 2 * Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE + BitmapInfoHeaderPtr::STRUCT_SIZE;
 	std::size_t hdrlBufferSize = List::STRUCT_SIZE + MainAVIHeader::STRUCT_SIZE + strlBufferSize;
-	auto buff = std::make_unique<std::uint8_t[]>(2 * Chunk::STRUCT_SIZE + hdrlBufferSize);
+	std::size_t moviBufferSize = List::STRUCT_SIZE + Chunk::STRUCT_SIZE + (frames * 24 * width + std::uint32_t(width & 3)) * height;
+	auto buff = std::make_unique<std::uint8_t[]>(2 * Chunk::STRUCT_SIZE + hdrlBufferSize + moviBufferSize);
 
-	List RIFF(buff.get());
+	RIFFHeader RIFF(buff.get());
 	RIFF.chunk_id() = make_fcc("RIFF");
 	Chunk AVI(RIFF.chunk_data());
 	AVI.chunk_id() = make_fcc("AVI "); //'AVI '
 
 	//hdrl
-	List hdrl(AVI.chunk_data());
+	List hdrl(AVI.chunk_data()); 
 	hdrl.chunk_id() = make_fcc("LIST");
 	hdrl.chunk_size() = hdrlBufferSize;
 	hdrl.list_type() = make_fcc("hdrl"); //'hdrl'
@@ -162,7 +163,12 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	strh.dwSuggestedBufferSize() = 0;
 	strh.dwQuality() = le2be(-1);
 	strh.dwSampleSize() = 0;
-	strh.rect() = RECT(0, 0, le2be(width), le2be(-1 * height));
+	RECT r(strh.rect());
+	r.left() = 0;
+	r.top() = 0;
+	r.right() = le2be(width);
+	r.bottom() = le2be(-1 * height);
+	//strh.rect() = r;
 
 	//streamHeader.chunk_data() = strh.data();
 	
@@ -182,17 +188,18 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	//streamFormat.chunk_data() = bmInfo.data();
 
 	//MOVI
-	List movi(RIFF.);
+	List movi(RIFF.chunk_data(), hdrlBufferSize);
 	movi.chunk_id() = make_fcc("LIST");
 	movi.list_type() = make_fcc("movi"); //'movi'
 
-	Chunk frame;
+	Chunk frame(movi.chunk_data());
 	frame.chunk_id() = make_fcc("00db");
-	frame.chunk_size() = le2be((frames * 24 * width + std::uint32_t(width & 3)) * height);
+	std::size_t framesSize = (frames * 24 * width + std::uint32_t(width & 3)) * height;
+	frame.chunk_size() = le2be(framesSize);
 	generateFrames(width, height, get_value, frames, val_min, val_max, frame.chunk_data());
 
-	movi.chunk_size() = le2be(frame.chunk_size() + sizeof(frame.chunk_id()) + sizeof(movi.list_type()));
-	movi.chunk_data() = frame.data();
+	movi.chunk_size() = le2be(framesSize + Chunk::STRUCT_SIZE + sizeof(movi.list_type()));
+	//movi.chunk_data() = frame.data();
 }
 
 //void createAVI()

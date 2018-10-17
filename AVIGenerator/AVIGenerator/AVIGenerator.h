@@ -244,4 +244,7 @@ private:
 	std::uint8_t* m_ptr = nullptr;
 };
 
+template <class Caller>
+void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsigned height, unsigned frames, double val_min, double val_max, bool discard_file);
+
 #endif // !AVI_GENERATOR
