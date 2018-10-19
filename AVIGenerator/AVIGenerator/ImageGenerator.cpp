@@ -5,7 +5,7 @@ static inline unsigned scaleBetween(double unscaledNum, double min, double max)
 	return unsigned(MAX_COLORS * (unscaledNum - min) / (max - min)); //scale from [min; max) to [0; MAX_COLORS)
 }
 
-static bool ValToRGB(double nVal, double nMin, double nMax, RGBTRIPLE* colour)
+bool ValToRGB(double nVal, double nMin, double nMax, RGBTRIPLE* colour)
 {
 	unsigned x;
 	unsigned nRange;

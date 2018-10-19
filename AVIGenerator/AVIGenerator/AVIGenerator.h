@@ -244,7 +244,61 @@ private:
 	std::uint8_t* m_ptr = nullptr;
 };
 
+struct avi_file_handle_close
+{
+	inline void operator()(std::FILE* fp) const noexcept
+	{
+		std::fclose(fp);
+	}
+};
+
+using unique_avi_file_handle = std::unique_ptr<std::FILE, avi_file_handle_close>;
+
+std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned height, unsigned frames);
+
 template <class Caller>
-void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsigned height, unsigned frames, double val_min, double val_max, bool discard_file);
+bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigned frames,
+	double val_min, double val_max, unsigned char* frData)
+{
+	auto cbPadding = std::uint32_t(width & 3);
+	for (unsigned f = 0; f < frames; ++f)
+	{
+		for (unsigned l = 0; l < height; ++l)
+		{
+			for (unsigned k = 0; k < width; ++k)
+			{
+				bool successCode = ValToRGB(get_value(k, l, f), val_min, val_max, (RGBTRIPLE*)frData);
+				if (!successCode)
+					return false;
+			}
+			memcpy(frData, 0, cbPadding);
+		}
+	}
+	return true;
+}
+
+template <class Caller>
+void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsigned height, unsigned frames, double val_min, double val_max, bool discard_file)
+{
+	auto aviFile = unique_avi_file_handle(std::fopen("animated.avi", "wb"));
+	if (bool(aviFile) && !discard_file)
+		return;
+
+	std::size_t strlBufferSize = List::STRUCT_SIZE + 2 * Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE + BitmapInfoHeaderPtr::STRUCT_SIZE;
+	std::size_t hdrlBufferSize = List::STRUCT_SIZE + MainAVIHeader::STRUCT_SIZE + strlBufferSize;
+	std::size_t moviBufferSize = List::STRUCT_SIZE + Chunk::STRUCT_SIZE + (frames * 24 * width + std::uint32_t(width & 3)) * height;
+
+	std::unique_ptr<std::uint8_t[]> mem(generateAVIStructures(width, height, frames));
+
+	RIFFHeader Riff(mem.get());
+
+	generateFrames(width, height, get_value, frames, -10, 10, Riff.chunk_data() + hdrlBufferSize + 4 * sizeof(std::uint32_t));
+	//List movi(RIFF.chunk_data(), hdrlBufferSize);
+	//movi.chunk_id() = make_fcc("LIST");
+	//movi.list_type() = make_fcc("movi"); //'movi'
+	//Chunk frame(movi.chunk_data());
+	//frame.chunk_id() = make_fcc("00db");
+	//frame.chunk_size() = le2be(framesSize);
+}
 
 #endif // !AVI_GENERATOR

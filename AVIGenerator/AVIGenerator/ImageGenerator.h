@@ -71,7 +71,7 @@ private:
 #define LAST_RANGE_COLORS 1
 #define MAX_COLORS ((RANGES - 1) * RANGE_COLORS + LAST_RANGE_COLORS)
 
-static bool ValToRGB(double nVal, double nMin, double nMax, RGBTRIPLE* colour);
+bool ValToRGB(double nVal, double nMin, double nMax, RGBTRIPLE* colour);
 
 #endif // !IMAGE_GENERATOR
 

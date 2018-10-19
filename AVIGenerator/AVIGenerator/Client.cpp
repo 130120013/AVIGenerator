@@ -1,6 +1,5 @@
 #include <iostream>
 #include "AVIGenerator.h"
-#include "ImageGenerator.h"
 #include <cstdint>
 
 int main()
