@@ -293,12 +293,6 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	RIFFHeader Riff(mem.get());
 
 	generateFrames(width, height, get_value, frames, -10, 10, Riff.chunk_data() + hdrlBufferSize + 4 * sizeof(std::uint32_t));
-	//List movi(RIFF.chunk_data(), hdrlBufferSize);
-	//movi.chunk_id() = make_fcc("LIST");
-	//movi.list_type() = make_fcc("movi"); //'movi'
-	//Chunk frame(movi.chunk_data());
-	//frame.chunk_id() = make_fcc("00db");
-	//frame.chunk_size() = le2be(framesSize);
 }
 
 #endif // !AVI_GENERATOR

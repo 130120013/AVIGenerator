@@ -133,9 +133,6 @@ std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned h
 	r.top() = 0;
 	r.right() = le2be(width);
 	r.bottom() = le2be(-1 * height);
-	//strh.rect() = r;
-
-	//streamHeader.chunk_data() = strh.data();
 
 	//STRF
 	bmInfo.Size() = le2be(40);
@@ -150,8 +147,6 @@ std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned h
 	bmInfo.ClrUsed() = 0;
 	bmInfo.ClrImportant() = 0;
 
-	//streamFormat.chunk_data() = bmInfo.data();
-
 	//MOVI
 	std::size_t framesSize = (frames * 24 * width + std::uint32_t(width & 3)) * height;
 	List movi(RIFF.chunk_data(), hdrlBufferSize);
@@ -163,10 +158,7 @@ std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned h
 	frame.chunk_id() = make_fcc("00db");
 	frame.chunk_size() = le2be(framesSize);
 
-	//movi.chunk_data() = frame.data();
-	auto buf = std::make_unique<std::uint8_t[]>(2 * Chunk::STRUCT_SIZE + hdrlBufferSize + moviBufferSize);
-	buf.reset(RIFF.data());
-	return buf;
+	return buff;
 }
 
 
