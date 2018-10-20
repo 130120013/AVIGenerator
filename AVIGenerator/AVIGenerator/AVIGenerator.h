@@ -125,7 +125,7 @@ struct MainAVIHeader:Chunk
 		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 36);
 	}
 	//static constexpr std::uint32_t FCC = 0x61766968;
-	static constexpr std::size_t STRUCT_SIZE = 60;
+	static constexpr std::size_t STRUCT_SIZE = 56; //size without Chunk's fields
 private:
 	std::uint8_t* m_ptr = nullptr;
 };
@@ -267,11 +267,11 @@ bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigne
 		{
 			for (unsigned k = 0; k < width; ++k)
 			{
-				bool successCode = ValToRGB(get_value(k, l, f), val_min, val_max, (RGBTRIPLE*)frData);
+				bool successCode = ValToRGB(get_value(k, l, f), val_min, val_max, (RGBTRIPLE*)(frData + 24 * k * l * (f + 1)));
 				if (!successCode)
 					return false;
 			}
-			memcpy(frData, 0, cbPadding);
+			memcpy(frData + 24 * width * (l + 1) * (f + 1), 0, cbPadding); //sizeof(rgbBlue) + sizeof(rgbGreen) + sizeof(rgbRed)
 		}
 	}
 	return true;
@@ -280,19 +280,23 @@ bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigne
 template <class Caller>
 void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsigned height, unsigned frames, double val_min, double val_max, bool discard_file)
 {
-	auto aviFile = unique_avi_file_handle(std::fopen("animated.avi", "wb"));
+	auto aviFile = unique_avi_file_handle(std::fopen(file_name, "wb"));
 	if (bool(aviFile) && !discard_file)
 		return;
 
 	std::size_t strlBufferSize = List::STRUCT_SIZE + 2 * Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE + BitmapInfoHeaderPtr::STRUCT_SIZE;
 	std::size_t hdrlBufferSize = List::STRUCT_SIZE + MainAVIHeader::STRUCT_SIZE + strlBufferSize;
 	std::size_t moviBufferSize = List::STRUCT_SIZE + Chunk::STRUCT_SIZE + (frames * 24 * width + std::uint32_t(width & 3)) * height;
+	std::size_t riffBufferSize = RIFFHeader::STRUCT_SIZE + Chunk::STRUCT_SIZE + hdrlBufferSize + moviBufferSize;
 
 	std::unique_ptr<std::uint8_t[]> mem(generateAVIStructures(width, height, frames));
 
 	RIFFHeader Riff(mem.get());
+	generateFrames(width, height, get_value, frames, -10, 10, Riff.chunk_data() + hdrlBufferSize + 5 * sizeof(std::uint32_t));
 
-	generateFrames(width, height, get_value, frames, -10, 10, Riff.chunk_data() + hdrlBufferSize + 4 * sizeof(std::uint32_t));
+	if (fwrite(Riff.data(), 1, riffBufferSize, aviFile.get()) < riffBufferSize)
+		return;
 }
 
 #endif // !AVI_GENERATOR
+ 

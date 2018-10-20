@@ -66,27 +66,28 @@ constexpr auto make_fcc(const char(&fcc_str)[N]) -> std::enable_if_t<N == 4, std
 std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned height, unsigned frames)
 {
 	std::size_t strlBufferSize = List::STRUCT_SIZE + 2 * Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE + BitmapInfoHeaderPtr::STRUCT_SIZE;
-	std::size_t hdrlBufferSize = List::STRUCT_SIZE + MainAVIHeader::STRUCT_SIZE + strlBufferSize;
+	std::size_t hdrlBufferSize = List::STRUCT_SIZE + Chunk::STRUCT_SIZE + MainAVIHeader::STRUCT_SIZE + strlBufferSize;
 	std::size_t moviBufferSize = List::STRUCT_SIZE + Chunk::STRUCT_SIZE + (frames * 24 * width + std::uint32_t(width & 3)) * height;
-	auto buff = std::make_unique<std::uint8_t[]>(2 * Chunk::STRUCT_SIZE + hdrlBufferSize + moviBufferSize);
+	std::size_t riffBufferSize = RIFFHeader::STRUCT_SIZE + Chunk::STRUCT_SIZE + hdrlBufferSize + moviBufferSize;
+	auto buff = std::make_unique<std::uint8_t[]>(riffBufferSize);
 
 	RIFFHeader RIFF(buff.get());
 	RIFF.chunk_id() = make_fcc("RIFF");
-	RIFF.chunk_size() = 2 * Chunk::STRUCT_SIZE + hdrlBufferSize + moviBufferSize;
+	RIFF.chunk_size() = riffBufferSize - Chunk::STRUCT_SIZE;
 	Chunk AVI(RIFF.chunk_data());
 	AVI.chunk_id() = make_fcc("AVI "); //'AVI '
-	AVI.chunk_size() = hdrlBufferSize;
+	AVI.chunk_size() = le2be(hdrlBufferSize);
 
 	//hdrl
 	List hdrl(AVI.chunk_data());
 	hdrl.chunk_id() = make_fcc("LIST");
-	hdrl.chunk_size() = hdrlBufferSize;
+	hdrl.chunk_size() = le2be(hdrlBufferSize);
 	hdrl.list_type() = make_fcc("hdrl"); //'hdrl'
 
 	//avih
 	MainAVIHeader mainAVI(hdrl.list_data(), 0);
 	mainAVI.chunk_id() = make_fcc("avih");
-	mainAVI.chunk_size() = MainAVIHeader::STRUCT_SIZE - Chunk::STRUCT_SIZE;
+	mainAVI.chunk_size() = le2be(MainAVIHeader::STRUCT_SIZE);
 	mainAVI.dwMicroSecPerFrame() = 0;
 	mainAVI.dwMaxBytesPerSec() = le2be((frames * 24 * width + std::uint32_t(width & 3)) * 25 * height);
 	mainAVI.dwPaddingGranularity() = le2be(4);
@@ -102,17 +103,17 @@ std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned h
 	//STRL 
 	List strl(hdrl.list_data(), MainAVIHeader::STRUCT_SIZE);
 	strl.chunk_id() = make_fcc("LIST");
-	strl.chunk_size() = strlBufferSize;
+	strl.chunk_size() = le2be(strlBufferSize);
 	strl.list_type() = make_fcc("strl"); //'strl'
 	Chunk streamHeader(strl.list_data(), 0);
 	streamHeader.chunk_id() = make_fcc("strh"); //'strh'
-	streamHeader.chunk_size() = le2be(AVIStreamHeader::STRUCT_SIZE);
+	streamHeader.chunk_size() = le2be(AVIStreamHeader::STRUCT_SIZE); //переполнение size_t? или проблемы с le2be
 	AVIStreamHeader strh(streamHeader.chunk_data());
 	strh.fccType() = make_fcc("vids");
 
 	Chunk streamFormat(strl.list_data(), Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE);
 	streamFormat.chunk_id() = make_fcc("strf"); //'strf'
-	streamFormat.chunk_size() = BitmapInfoHeaderPtr::STRUCT_SIZE;
+	streamFormat.chunk_size() = le2be(BitmapInfoHeaderPtr::STRUCT_SIZE);
 	BitmapInfoHeaderPtr bmInfo(streamFormat.chunk_data());
 
 	//STRH
