@@ -118,11 +118,11 @@ struct MainAVIHeader:Chunk
 	}
 	inline std::uint32_t& dwHeight() const
 	{
-		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 32);
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 36);
 	}
 	inline std::uint32_t& dwReserved() const //dwReserved[4];
 	{
-		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 36);
+		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 40);
 	}
 	//static constexpr std::uint32_t FCC = 0x61766968;
 	static constexpr std::size_t STRUCT_SIZE = 56; //size without Chunk's fields

@@ -74,46 +74,49 @@ std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned h
 	RIFFHeader RIFF(buff.get());
 	RIFF.chunk_id() = make_fcc("RIFF");
 	RIFF.chunk_size() = riffBufferSize - Chunk::STRUCT_SIZE;
-	Chunk AVI(RIFF.chunk_data());
-	AVI.chunk_id() = make_fcc("AVI "); //'AVI '
-	AVI.chunk_size() = le2be(hdrlBufferSize);
+	RIFF.file_type() = make_fcc("AVI ");
+	//Chunk AVI(RIFF.chunk_data());
+	//AVI.chunk_id() = make_fcc("AVI "); //'AVI '
+	//AVI.chunk_size() = hdrlBufferSize;
 
 	//hdrl
-	List hdrl(AVI.chunk_data());
+	List hdrl(RIFF.data(), RIFFHeader::STRUCT_SIZE);
 	hdrl.chunk_id() = make_fcc("LIST");
-	hdrl.chunk_size() = le2be(hdrlBufferSize);
+	hdrl.chunk_size() = hdrlBufferSize;
 	hdrl.list_type() = make_fcc("hdrl"); //'hdrl'
 
 	//avih
 	MainAVIHeader mainAVI(hdrl.list_data(), 0);
 	mainAVI.chunk_id() = make_fcc("avih");
-	mainAVI.chunk_size() = le2be(MainAVIHeader::STRUCT_SIZE);
+	mainAVI.chunk_size() = MainAVIHeader::STRUCT_SIZE;
 	mainAVI.dwMicroSecPerFrame() = 0;
-	mainAVI.dwMaxBytesPerSec() = le2be((frames * 24 * width + std::uint32_t(width & 3)) * 25 * height);
-	mainAVI.dwPaddingGranularity() = le2be(4);
+	mainAVI.dwMaxBytesPerSec() = (frames * 24 * width + std::uint32_t(width & 3)) * 25 * height;
+	mainAVI.dwPaddingGranularity() = 4;
 	mainAVI.dwFlags() = 0;
-	mainAVI.dwTotalFrames() = le2be(frames / 25);
+	mainAVI.dwTotalFrames() = frames / 25;
 	mainAVI.dwInitialFrames() = 0;
-	mainAVI.dwStreams() = le2be(1);
+	mainAVI.dwStreams() = 1;
 	mainAVI.dwSuggestedBufferSize() = 0;
-	mainAVI.dwWidth() = le2be(width);
-	mainAVI.dwHeight() = le2be(height);
+	mainAVI.dwWidth() = width;
+	mainAVI.dwHeight() = height;
+	std::uint32_t reserved = 0;
+	//memcpy(&mainAVI.dwReserved(), &reserved, 4 * sizeof(std::uint32_t));
 	memset(&mainAVI.dwReserved(), 0, 4 * sizeof(std::uint32_t));
 
 	//STRL 
-	List strl(hdrl.list_data(), MainAVIHeader::STRUCT_SIZE);
+	List strl(hdrl.list_data(), MainAVIHeader::STRUCT_SIZE + Chunk::STRUCT_SIZE);
 	strl.chunk_id() = make_fcc("LIST");
-	strl.chunk_size() = le2be(strlBufferSize);
+	strl.chunk_size() = strlBufferSize;
 	strl.list_type() = make_fcc("strl"); //'strl'
 	Chunk streamHeader(strl.list_data(), 0);
 	streamHeader.chunk_id() = make_fcc("strh"); //'strh'
-	streamHeader.chunk_size() = le2be(AVIStreamHeader::STRUCT_SIZE); //переполнение size_t? или проблемы с le2be
+	streamHeader.chunk_size() = AVIStreamHeader::STRUCT_SIZE; //переполнение size_t? или проблемы с le2be
 	AVIStreamHeader strh(streamHeader.chunk_data());
 	strh.fccType() = make_fcc("vids");
 
 	Chunk streamFormat(strl.list_data(), Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE);
 	streamFormat.chunk_id() = make_fcc("strf"); //'strf'
-	streamFormat.chunk_size() = le2be(BitmapInfoHeaderPtr::STRUCT_SIZE);
+	streamFormat.chunk_size() = BitmapInfoHeaderPtr::STRUCT_SIZE;
 	BitmapInfoHeaderPtr bmInfo(streamFormat.chunk_data());
 
 	//STRH
@@ -122,25 +125,25 @@ std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned h
 	strh.wPriority() = 0;
 	strh.wLanguage() = 0;
 	strh.dwInitialFrames() = 0;
-	strh.dwScale() = le2be(frames / 25);
-	strh.dwRate() = le2be(25);
+	strh.dwScale() = frames / 25;
+	strh.dwRate() = 25;
 	strh.dwStart() = 0;
-	strh.dwLength() = le2be(frames / 25);
+	strh.dwLength() = frames / 25;
 	strh.dwSuggestedBufferSize() = 0;
-	strh.dwQuality() = le2be(-1);
+	strh.dwQuality() = -1;
 	strh.dwSampleSize() = 0;
 	RECT r(strh.rect());
 	r.left() = 0;
 	r.top() = 0;
-	r.right() = le2be(width);
-	r.bottom() = le2be(-1 * height);
+	r.right() = width;
+	r.bottom() = height;
 
 	//STRF
-	bmInfo.Size() = le2be(40);
-	bmInfo.Width() = le2be((std::uint32_t) width);
-	bmInfo.Height() = le2be((std::uint32_t) height);
-	bmInfo.Plains() = le2be(1);
-	bmInfo.BitCount() = le2be(24);
+	bmInfo.Size() = 40;
+	bmInfo.Width() = (std::uint32_t) width;
+	bmInfo.Height() = (std::uint32_t) height;
+	bmInfo.Plains() = 1;
+	bmInfo.BitCount() = 24;
 	bmInfo.Compression() = 0;
 	bmInfo.SizeImage() = 0;
 	bmInfo.XPelsPerMeter() = 0;
@@ -153,11 +156,11 @@ std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned h
 	List movi(RIFF.chunk_data(), hdrlBufferSize);
 	movi.chunk_id() = make_fcc("LIST");
 	movi.list_type() = make_fcc("movi"); //'movi'
-	movi.chunk_size() = le2be(framesSize + Chunk::STRUCT_SIZE + sizeof(movi.list_type()));
+	movi.chunk_size() = framesSize + Chunk::STRUCT_SIZE + sizeof(movi.list_type());
 
 	Chunk frame(movi.chunk_data());
 	frame.chunk_id() = make_fcc("00db");
-	frame.chunk_size() = le2be(framesSize);
+	frame.chunk_size() = framesSize;
 
 	return buff;
 }
