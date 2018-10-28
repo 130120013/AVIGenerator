@@ -137,21 +137,21 @@ struct RECT
 	RECT() = default;
 	RECT(std::uint8_t* pBuf, std::uint32_t offset = 0) :m_ptr(pBuf + offset) {}
 
-	inline std::int32_t& left() const
+	inline std::int16_t& left() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data());
+		return *reinterpret_cast<std::int16_t*>(this->data());
 	}
-	inline std::int32_t& top() const
+	inline std::int16_t& top() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + sizeof(std::int32_t));
+		return *reinterpret_cast<std::int16_t*>(this->data() + sizeof(std::int16_t));
 	}
-	inline std::int32_t& right() const
+	inline std::int16_t& right() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + 2 * sizeof(std::int32_t));
+		return *reinterpret_cast<std::int16_t*>(this->data() + 2 * sizeof(std::int16_t));
 	}
-	inline std::int32_t& bottom() const
+	inline std::int16_t& bottom() const
 	{
-		return *reinterpret_cast<std::int32_t*>(this->data() + 3 * sizeof(std::int32_t));
+		return *reinterpret_cast<std::int16_t*>(this->data() + 3 * sizeof(std::int16_t));
 	}
 	inline std::uint8_t* data() const
 	{
@@ -161,7 +161,7 @@ struct RECT
 	{
 		return STRUCT_SIZE;
 	}
-	static constexpr std::size_t STRUCT_SIZE = sizeof(std::uint32_t) * 4;
+	static constexpr std::size_t STRUCT_SIZE = sizeof(std::uint32_t) * 2;
 private:
 	std::uint8_t* m_ptr = nullptr;
 };
@@ -239,7 +239,7 @@ struct AVIStreamHeader
 		return STRUCT_SIZE;
 	}
 	//static constexpr std::uint32_t FCC = 0x76696473;
-	static constexpr std::size_t STRUCT_SIZE = 48 + 4 * sizeof(long);
+	static constexpr std::size_t STRUCT_SIZE = 48 + 2 * sizeof(long);
 private:
 	std::uint8_t* m_ptr = nullptr;
 };
