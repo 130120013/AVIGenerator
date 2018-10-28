@@ -51,8 +51,6 @@ struct List: Chunk
 	}
 	//static constexpr std::uint32_t LIST_ID = make_fcc("LIST");
 	static constexpr std::size_t STRUCT_SIZE = 12;
-private:
-	std::uint8_t* m_ptr = nullptr;
 };
 
 struct RIFFHeader : Chunk
@@ -70,8 +68,6 @@ struct RIFFHeader : Chunk
 	}
 	//static constexpr std::uint32_t RIFF_ID = make_fcc("RIFF");
 	static constexpr std::size_t STRUCT_SIZE = 12;
-private:
-	std::uint8_t* m_ptr = nullptr;
 };
 
 
@@ -126,8 +122,6 @@ struct MainAVIHeader:Chunk
 	}
 	//static constexpr std::uint32_t FCC = 0x61766968;
 	static constexpr std::size_t STRUCT_SIZE = 56; //size without Chunk's fields
-private:
-	std::uint8_t* m_ptr = nullptr;
 };
 
 /////////////
@@ -256,22 +250,78 @@ using unique_avi_file_handle = std::unique_ptr<std::FILE, avi_file_handle_close>
 
 std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned height, unsigned frames);
 
+constexpr std::size_t COLOR_BIT_DEPTH = 24;
+constexpr std::size_t COLOR_BYTE_DEPTH = COLOR_BIT_DEPTH / 8;
+
+constexpr std::size_t aligned_byte_width(std::size_t width)
+{
+	return ((COLOR_BYTE_DEPTH * width) & 3) == 0?
+		COLOR_BYTE_DEPTH * width:COLOR_BYTE_DEPTH * width + 4 - ((COLOR_BYTE_DEPTH * width) & 3);
+}
+
+constexpr std::size_t frame_size(std::size_t width, std::size_t height)
+{
+	return aligned_byte_width(width) * height;
+}
+
+constexpr std::size_t frame_chunk_size(std::size_t width, std::size_t height)
+{
+	return Chunk::STRUCT_SIZE + frame_size(width, height);
+}
+
+constexpr std::size_t frame_chunks_size(std::size_t width, std::size_t height, std::size_t frames)
+{
+	return (Chunk::STRUCT_SIZE + frame_size(width, height)) * frames;
+}
+
+constexpr std::size_t g_strlBufferSize = 2 * Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE + BitmapInfoHeaderPtr::STRUCT_SIZE;
+constexpr std::size_t g_hdrlBufferSize = Chunk::STRUCT_SIZE + MainAVIHeader::STRUCT_SIZE + g_strlBufferSize;
+constexpr std::size_t moviBufferSize(std::size_t width, std::size_t height, std::size_t frames) 
+{
+	return List::STRUCT_SIZE + frame_chunks_size(width, height, frames);
+}
+constexpr std::size_t riffBufferSize(std::size_t width, std::size_t height, std::size_t frames)
+{
+	return RIFFHeader::STRUCT_SIZE + g_hdrlBufferSize + moviBufferSize(width, height, frames) + 2 * List::STRUCT_SIZE;
+}
+
+constexpr std::uint32_t make_fcc(char b0, char b1, char b2, char b3)
+{
+	return (std::uint32_t(b3) << 24) | (std::uint32_t(b2 << 16)) | (std::uint32_t(b1 << 8)) | (std::uint32_t(b0));
+}
+
+template <std::size_t N>
+constexpr auto make_fcc(const char(&fcc_str)[N]) -> std::enable_if_t<N == 5, std::uint32_t>
+{
+	return fcc_str[5 - 1] == '\0' ? make_fcc(fcc_str[0], fcc_str[1], fcc_str[2], fcc_str[3]) : throw std::invalid_argument("Invalid FCC identifuer");
+}
+
+template <std::size_t N>
+constexpr auto make_fcc(const char(&fcc_str)[N]) -> std::enable_if_t<N == 4, std::uint32_t>
+{
+	return fcc_str[3] != '\0' ? make_fcc(fcc_str[0], fcc_str[1], fcc_str[2], fcc_str[3]) : throw std::invalid_argument("Invalid FCC identifuer");
+}
+
 template <class Caller>
 bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigned frames,
 	double val_min, double val_max, unsigned char* frData)
 {
-	auto cbPadding = std::uint32_t(width & 3);
+	auto cbPadding = aligned_byte_width(width) - width * COLOR_BYTE_DEPTH;
 	for (unsigned f = 0; f < frames; ++f)
 	{
+		auto current_frame_offset = unsigned(frame_chunks_size(width, height, f));
+		Chunk frame(frData, current_frame_offset);
+		frame.chunk_id() = make_fcc("00db");
+		frame.chunk_size() = unsigned(frame_size(width, height));
 		for (unsigned l = 0; l < height; ++l)
 		{
 			for (unsigned k = 0; k < width; ++k)
 			{
-				bool successCode = ValToRGB(get_value(k, l, f), val_min, val_max, (RGBTRIPLE*)(frData + 24 * k * l * (f + 1)));
+				bool successCode = ValToRGB(get_value(k, l, f), val_min, val_max, (RGBTRIPLE*)(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * k));
 				if (!successCode)
 					return false;
 			}
-			memcpy(frData + 24 * width * (l + 1) * (f + 1), 0, cbPadding); //sizeof(rgbBlue) + sizeof(rgbGreen) + sizeof(rgbRed)
+			memset(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * width, 0, cbPadding);
 		}
 	}
 	return true;
@@ -283,19 +333,15 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	auto aviFile = unique_avi_file_handle(std::fopen(file_name, "wb"));
 	if (bool(aviFile) && !discard_file)
 		return;
-
-	std::size_t strlBufferSize = List::STRUCT_SIZE + 2 * Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE + BitmapInfoHeaderPtr::STRUCT_SIZE;
-	std::size_t hdrlBufferSize = List::STRUCT_SIZE + MainAVIHeader::STRUCT_SIZE + strlBufferSize;
-	std::size_t moviBufferSize = List::STRUCT_SIZE + Chunk::STRUCT_SIZE + (frames * 24 * width + std::uint32_t(width & 3)) * height;
-	std::size_t riffBufferSize = RIFFHeader::STRUCT_SIZE + Chunk::STRUCT_SIZE + hdrlBufferSize + moviBufferSize;
+	auto cbRiff = riffBufferSize(width, height, frames);
 
 	std::unique_ptr<std::uint8_t[]> mem(generateAVIStructures(width, height, frames));
 
 	RIFFHeader Riff(mem.get());
-	generateFrames(width, height, get_value, frames, -10, 10, Riff.chunk_data() + hdrlBufferSize + 5 * sizeof(std::uint32_t));
+	generateFrames(width, height, get_value, frames, -10, 10, Riff.chunk_data() + List::STRUCT_SIZE + g_hdrlBufferSize);
 
-	if (fwrite(Riff.data(), 1, riffBufferSize, aviFile.get()) < riffBufferSize)
-		return;
+	if (fwrite(Riff.data(), 1, cbRiff, aviFile.get()) < cbRiff)
+		throw std::runtime_error("Could not write to a file");
 }
 
 #endif // !AVI_GENERATOR

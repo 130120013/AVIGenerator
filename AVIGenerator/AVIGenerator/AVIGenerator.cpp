@@ -46,45 +46,23 @@ constexpr auto le2be(T num) noexcept -> std::enable_if_t<(sizeof(T) > 1), T>
 		typename converter::internal_type(le2be(typename LE_BE_conversion<T>::half_type(num))) << (sizeof(T) * 4));
 }
 
-constexpr std::uint32_t make_fcc(char b0, char b1, char b2, char b3)
-{
-	return (std::uint32_t(b3) << 24) | (std::uint32_t(b2 << 16)) | (std::uint32_t(b1 << 8)) | (std::uint32_t(b0));
-}
-
-template <std::size_t N>
-constexpr auto make_fcc(const char(&fcc_str)[N]) -> std::enable_if_t<N == 5, std::uint32_t>
-{
-	return fcc_str[5 - 1] == '\0' ? make_fcc(fcc_str[0], fcc_str[1], fcc_str[2], fcc_str[3]) : throw std::invalid_argument("Invalid FCC identifuer");
-}
-
-template <std::size_t N>
-constexpr auto make_fcc(const char(&fcc_str)[N]) -> std::enable_if_t<N == 4, std::uint32_t>
-{
-	return fcc_str[3] != '\0' ? make_fcc(fcc_str[0], fcc_str[1], fcc_str[2], fcc_str[3]) : throw std::invalid_argument("Invalid FCC identifuer");
-}
-
 std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned height, unsigned frames)
 {
-	std::size_t strlBufferSize = //List::STRUCT_SIZE +
-		2 * Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE + BitmapInfoHeaderPtr::STRUCT_SIZE;
-	std::size_t hdrlBufferSize = //List::STRUCT_SIZE + 
-		Chunk::STRUCT_SIZE + MainAVIHeader::STRUCT_SIZE + strlBufferSize;
-	std::size_t moviBufferSize = List::STRUCT_SIZE + Chunk::STRUCT_SIZE + (frames * 24 * width + std::uint32_t(width & 3)) * height;
-	std::size_t riffBufferSize = RIFFHeader::STRUCT_SIZE + hdrlBufferSize + moviBufferSize + 2 * List::STRUCT_SIZE;
-	auto buff = std::make_unique<std::uint8_t[]>(riffBufferSize);
+	auto cbRiff = riffBufferSize(width, height, frames);
+	auto buff = std::make_unique<std::uint8_t[]>(cbRiff);
 
 	RIFFHeader RIFF(buff.get());
 	RIFF.chunk_id() = make_fcc("RIFF");
-	RIFF.chunk_size() = riffBufferSize - RIFFHeader::STRUCT_SIZE + sizeof(std::uint32_t);
+	RIFF.chunk_size() = unsigned(cbRiff - RIFFHeader::STRUCT_SIZE + sizeof(std::uint32_t));
 	RIFF.file_type() = make_fcc("AVI ");
 	//Chunk AVI(RIFF.chunk_data());
 	//AVI.chunk_id() = make_fcc("AVI "); //'AVI '
-	//AVI.chunk_size() = hdrlBufferSize;
+	//AVI.chunk_size() = g_hdrlBufferSize;
 
 	//hdrl
 	List hdrl(RIFF.data(), RIFFHeader::STRUCT_SIZE);
 	hdrl.chunk_id() = make_fcc("LIST");
-	hdrl.chunk_size() = hdrlBufferSize + sizeof(std::uint32_t);
+	hdrl.chunk_size() = g_hdrlBufferSize + sizeof(std::uint32_t);
 	hdrl.list_type() = make_fcc("hdrl"); //'hdrl'
 
 	//avih
@@ -108,7 +86,7 @@ std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned h
 	//STRL 
 	List strl(hdrl.list_data(), MainAVIHeader::STRUCT_SIZE + Chunk::STRUCT_SIZE);
 	strl.chunk_id() = make_fcc("LIST");
-	strl.chunk_size() = strlBufferSize + sizeof(std::uint32_t);
+	strl.chunk_size() = g_strlBufferSize + sizeof(std::uint32_t);
 	strl.list_type() = make_fcc("strl"); //'strl'
 	Chunk streamHeader(strl.list_data(), 0);
 	streamHeader.chunk_id() = make_fcc("strh"); //'strh'
@@ -143,7 +121,7 @@ std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned h
 	//STRF
 	bmInfo.Size() = 40;
 	bmInfo.Width() = (std::uint32_t) width;
-	bmInfo.Height() = (std::uint32_t) height;
+	bmInfo.Height() = std::uint32_t() - (std::uint32_t) height;
 	bmInfo.Plains() = 1;
 	bmInfo.BitCount() = 24;
 	bmInfo.Compression() = 0;
@@ -154,15 +132,10 @@ std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned h
 	bmInfo.ClrImportant() = 0;
 
 	//MOVI
-	std::size_t framesSize = (frames * 24 * width + std::uint32_t(width & 3)) * height;
-	List movi(RIFF.chunk_data(), hdrlBufferSize);
+	List movi(RIFF.chunk_data(), g_hdrlBufferSize);
 	movi.chunk_id() = make_fcc("LIST");
+	movi.chunk_size() = unsigned(frame_chunks_size(width, height, frames) + sizeof(std::remove_reference_t<decltype(movi.list_type())>));
 	movi.list_type() = make_fcc("movi"); //'movi'
-	movi.chunk_size() = framesSize + Chunk::STRUCT_SIZE + sizeof(std::uint32_t);
-
-	Chunk frame(movi.list_data());
-	frame.chunk_id() = make_fcc("00db");
-	frame.chunk_size() = framesSize;
 
 	return buff;
 }
