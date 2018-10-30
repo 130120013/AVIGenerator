@@ -4,7 +4,7 @@
 
 int main()
 {
-	generateAVI("123.avi", [](std::int32_t x, std::int32_t y, std::int32_t t) -> std::int32_t
+	generateAVI("124.avi", [](std::int32_t x, std::int32_t y, std::int32_t t) -> std::int32_t
 	{
 		return x * y + t;
 	}, 1000, 1000, 26, 0, 1000025, true);

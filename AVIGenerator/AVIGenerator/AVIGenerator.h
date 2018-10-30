@@ -274,15 +274,15 @@ constexpr std::size_t frame_chunks_size(std::size_t width, std::size_t height, s
 	return (Chunk::STRUCT_SIZE + frame_size(width, height)) * frames;
 }
 
-constexpr std::size_t g_strlBufferSize = 2 * Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE + BitmapInfoHeaderPtr::STRUCT_SIZE;
-constexpr std::size_t g_hdrlBufferSize = Chunk::STRUCT_SIZE + MainAVIHeader::STRUCT_SIZE + g_strlBufferSize;
+constexpr std::size_t g_strlBufferSize = List::STRUCT_SIZE + 2 * Chunk::STRUCT_SIZE + AVIStreamHeader::STRUCT_SIZE + BitmapInfoHeaderPtr::STRUCT_SIZE;
+constexpr std::size_t g_hdrlBufferSize = List::STRUCT_SIZE + Chunk::STRUCT_SIZE + MainAVIHeader::STRUCT_SIZE + g_strlBufferSize;
 constexpr std::size_t moviBufferSize(std::size_t width, std::size_t height, std::size_t frames) 
 {
 	return List::STRUCT_SIZE + frame_chunks_size(width, height, frames);
 }
 constexpr std::size_t riffBufferSize(std::size_t width, std::size_t height, std::size_t frames)
 {
-	return RIFFHeader::STRUCT_SIZE + g_hdrlBufferSize + moviBufferSize(width, height, frames) + 2 * List::STRUCT_SIZE;
+	return RIFFHeader::STRUCT_SIZE + g_hdrlBufferSize + moviBufferSize(width, height, frames);
 }
 
 constexpr std::uint32_t make_fcc(char b0, char b1, char b2, char b3)
