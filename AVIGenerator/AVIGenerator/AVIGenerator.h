@@ -1,6 +1,8 @@
 #include <cstdint>
 #include <memory>
 #include <cstdio>
+#include <vector>
+#include <future>
 #include "ImageGenerator.h"
 
 #ifndef AVI_GENERATOR
@@ -307,23 +309,40 @@ bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigne
 	double val_min, double val_max, unsigned char* frData)
 {
 	auto cbPadding = aligned_byte_width(width) - width * COLOR_BYTE_DEPTH;
+	std::vector<std::future<bool>> futures;
+
+	futures.reserve(frames);
 	for (unsigned f = 0; f < frames; ++f)
 	{
-		auto current_frame_offset = unsigned(frame_chunks_size(width, height, f));
-		Chunk frame(frData, current_frame_offset);
-		frame.chunk_id() = make_fcc("00db");
-		frame.chunk_size() = unsigned(frame_size(width, height));
-		for (unsigned l = 0; l < height; ++l)
+		futures.emplace_back(std::async(std::launch::async, [cbPadding, f](unsigned width, unsigned height, std::reference_wrapper<std::decay_t<Caller>> get_value,
+															double val_min, double val_max, unsigned char* frData) -> bool
 		{
-			for (unsigned k = 0; k < width; ++k)
+			auto current_frame_offset = unsigned(frame_chunks_size(width, height, f));
+			Chunk frame(frData, current_frame_offset);
+			frame.chunk_id() = make_fcc("00db");
+			frame.chunk_size() = unsigned(frame_size(width, height));
+			for (unsigned l = 0; l < height; ++l)
 			{
-				bool successCode = ValToRGB(get_value(k, l, f), val_min, val_max, (RGBTRIPLE*)(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * k));
-				if (!successCode)
-					return false;
+
+				for (unsigned k = 0; k < width; ++k)
+				{
+					bool successCode = ValToRGB(get_value(k, l, f), val_min, val_max, (RGBTRIPLE*)(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * k));
+					if (!successCode)
+						return false;
+				}
+				memset(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * width, 0, cbPadding);
+
 			}
-			memset(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * width, 0, cbPadding);
-		}
+			return true;
+		}, width, height, std::ref(get_value), val_min, val_max, frData));
 	}
+
+	for (std::size_t iFut = 1; iFut < futures.size(); ++iFut)
+	{
+		if (!futures[iFut].get())
+			return false;
+	}
+
 	return true;
 }
 
@@ -338,7 +357,7 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	std::unique_ptr<std::uint8_t[]> mem(generateAVIStructures(width, height, frames));
 
 	RIFFHeader Riff(mem.get());
-	generateFrames(width, height, get_value, frames, -10, 10, Riff.chunk_data() + List::STRUCT_SIZE + g_hdrlBufferSize);
+	generateFrames(width, height, get_value, frames, val_min, val_max, Riff.chunk_data() + List::STRUCT_SIZE + g_hdrlBufferSize);
 
 	if (fwrite(Riff.data(), 1, cbRiff, aviFile.get()) < cbRiff)
 		throw std::runtime_error("Could not write to a file");

@@ -1,4 +1,9 @@
 #include <cstdint>
+
+#ifdef _MSC_VER
+#pragma warning (disable: 4996)
+#endif
+
 #ifndef IMAGE_GENERATOR
 #define IMAGE_GENERATOR
 
