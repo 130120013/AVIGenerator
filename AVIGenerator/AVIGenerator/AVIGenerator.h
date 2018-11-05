@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <vector>
 #include <future>
+#include <system_error>
 #include "ImageGenerator.h"
 
 #ifndef AVI_GENERATOR
@@ -304,37 +305,73 @@ constexpr auto make_fcc(const char(&fcc_str)[N]) -> std::enable_if_t<N == 4, std
 	return fcc_str[3] != '\0' ? make_fcc(fcc_str[0], fcc_str[1], fcc_str[2], fcc_str[3]) : throw std::invalid_argument("Invalid FCC identifuer");
 }
 
+class AviOutputFile
+{
+	unique_avi_file_handle m_file;
+	std::mutex m_mtx_file; //guards fseek and fwrite
+public:
+	AviOutputFile() = default;
+	inline AviOutputFile(const char* pszFileName) :m_file(unique_avi_file_handle(std::fopen(pszFileName, "wb"))) {}
+	AviOutputFile(const AviOutputFile&) = delete;
+	AviOutputFile& operator=(const AviOutputFile&) = delete;
+	AviOutputFile(AviOutputFile&&) = delete;
+	AviOutputFile& operator=(AviOutputFile&&) = delete;
+
+	inline bool is_opened() const
+	{
+		return bool(m_file);
+	}
+	inline std::size_t write_at(std::size_t where, const void* pData, std::size_t cbData)
+	{
+		if (cbData)
+			return where;
+		std::lock_guard<std::mutex> lock(m_mtx_file);
+		std::fseek(m_file.get(), where, SEEK_SET);
+		auto cbResult = std::fwrite(pData, 1, cbData, m_file.get());
+		if (!cbResult)
+			throw std::system_error(errno, std::generic_category());
+		return where + cbResult;
+	}
+};
+
 template <class Caller>
 bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigned frames,
-	double val_min, double val_max, unsigned char* frData)
+	double val_min, double val_max, AviOutputFile& output)
 {
 	auto cbPadding = aligned_byte_width(width) - width * COLOR_BYTE_DEPTH;
 	std::vector<std::future<bool>> futures;
 
 	futures.reserve(frames);
-	for (unsigned f = 0; f < frames; ++f)
+	constexpr std::size_t FRAME_BUFFER_SIZE = (1 << 25);
+	constexpr std::size_t FRAMES_PER_BUFFER = FRAME_BUFFER_SIZE / frame_size(width, height);
+	auto pFrameBuf = std::make_unique<std::uint8_t[]>(FRAMES_PER_BUFFER);
+	for (unsigned f1 = 0; f1 < frames; ++f1)
 	{
-		futures.emplace_back(std::async(std::launch::async, [cbPadding, f](unsigned width, unsigned height, std::reference_wrapper<std::decay_t<Caller>> get_value,
-															double val_min, double val_max, unsigned char* frData) -> bool
+		for (unsigned f = 0; f < FRAMES_PER_BUFFER; ++f)
 		{
-			auto current_frame_offset = unsigned(frame_chunks_size(width, height, f));
-			Chunk frame(frData, current_frame_offset);
-			frame.chunk_id() = make_fcc("00db");
-			frame.chunk_size() = unsigned(frame_size(width, height));
-			for (unsigned l = 0; l < height; ++l)
+			futures.emplace_back(std::async(std::launch::async, [cbPadding, f, &pFrameBuf](unsigned width, unsigned height, std::reference_wrapper<std::decay_t<Caller>> get_value,
+				double val_min, double val_max, unsigned char* frData) -> bool
 			{
-
-				for (unsigned k = 0; k < width; ++k)
+				auto current_frame_offset = unsigned(frame_size(width, height) * f);
+				Chunk frame(pFrameBuf.get(), current_frame_offset);
+				frame.chunk_id() = make_fcc("00db");
+				frame.chunk_size() = unsigned(frame_size(width, height));
+				for (unsigned l = 0; l < height; ++l)
 				{
-					bool successCode = ValToRGB(get_value(k, l, f), val_min, val_max, (RGBTRIPLE*)(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * k));
-					if (!successCode)
-						return false;
-				}
-				memset(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * width, 0, cbPadding);
+					for (unsigned k = 0; k < width; ++k)
+					{
+						bool successCode = ValToRGB(get_value(k, l, f), val_min, val_max, (RGBTRIPLE*)(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * k));
+						if (!successCode)
+							return false;
+					}
+					memset(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * width, 0, cbPadding);
 
-			}
-			return true;
-		}, width, height, std::ref(get_value), val_min, val_max, frData));
+				}
+				return true;
+			}, width, height, std::ref(get_value), val_min, val_max, frData));
+
+		}
+		output.write_at(, pFrameBuf.get(), frame_size(width, height) * FRAMES_PER_BUFFER);
 	}
 
 	for (std::size_t iFut = 1; iFut < futures.size(); ++iFut)
@@ -349,8 +386,8 @@ bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigne
 template <class Caller>
 void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsigned height, unsigned frames, double val_min, double val_max, bool discard_file)
 {
-	auto aviFile = unique_avi_file_handle(std::fopen(file_name, "wb"));
-	if (bool(aviFile) && !discard_file)
+	AviOutputFile aviFile(file_name);
+	if (aviFile.is_opened() && !discard_file)
 		return;
 	auto cbRiff = riffBufferSize(width, height, frames);
 
