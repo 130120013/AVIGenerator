@@ -323,7 +323,7 @@ public:
 	}
 	inline std::size_t write_at(std::size_t where, const void* pData, std::size_t cbData)
 	{
-		if (cbData)
+		if (!cbData)
 			return where;
 		std::lock_guard<std::mutex> lock(m_mtx_file);
 		std::fseek(m_file.get(), long(where), SEEK_SET);
@@ -346,16 +346,16 @@ bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigne
 
 	futures.reserve(frames);
 	constexpr std::size_t FRAME_BUFFER_SIZE = (1 << 25);
-	std::size_t FRAMES_PER_BUFFER = FRAME_BUFFER_SIZE / frame_size(width, height);
-	auto pFrameBuf = std::make_unique<std::uint8_t[]>(FRAMES_PER_BUFFER);
-	for (unsigned f1 = 0; f1 < frames; ++f1)
+	std::size_t FRAMES_PER_BUFFER = FRAME_BUFFER_SIZE / frame_chunk_size(width, height);
+	auto pFrameBuf = std::make_unique<std::uint8_t[]>(FRAMES_PER_BUFFER * frame_chunk_size(width, height));
+	for (unsigned f1 = 0; f1 < frames; f1 += (unsigned) FRAMES_PER_BUFFER)
 	{
 		for (unsigned f = 0; f < FRAMES_PER_BUFFER; ++f)
 		{
 			futures.emplace_back(std::async(std::launch::async, [cbPadding, f, &pFrameBuf](unsigned width, unsigned height, std::reference_wrapper<std::decay_t<Caller>> get_value,
 				double val_min, double val_max) -> bool
 			{
-				auto current_frame_offset = unsigned(frame_size(width, height) * f);
+				auto current_frame_offset = unsigned(frame_chunk_size(width, height) * f);
 				Chunk frame(pFrameBuf.get(), current_frame_offset);
 				frame.chunk_id() = make_fcc("00db");
 				frame.chunk_size() = unsigned(frame_size(width, height));
@@ -374,10 +374,10 @@ bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigne
 			}, width, height, std::ref(get_value), val_min, val_max));
 
 		}
-		output.write_at(frame_size(width, height) + Chunk::STRUCT_SIZE, pFrameBuf.get(), frame_size(width, height) * FRAMES_PER_BUFFER); //////////////////////////////////////
+		output.write_at(RIFFHeader::STRUCT_SIZE + g_hdrlBufferSize + List::STRUCT_SIZE + f1 * frame_chunk_size(width, height) * FRAMES_PER_BUFFER, pFrameBuf.get(), frame_chunk_size(width, height) * FRAMES_PER_BUFFER); //////////////////////////////////////
 	}
 
-	for (std::size_t iFut = 1; iFut < futures.size(); ++iFut)
+	for (std::size_t iFut = 0; iFut < futures.size(); ++iFut)
 	{
 		if (!futures[iFut].get())
 			return false;
@@ -396,13 +396,13 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 
 	std::unique_ptr<std::uint8_t[]> mem(generateAVIStructures(width, height, frames));
 
-	fseek(aviFile.file(), Chunk::STRUCT_SIZE + List::STRUCT_SIZE + g_hdrlBufferSize, SEEK_SET);
-
 	RIFFHeader Riff(mem.get());
-	generateFrames(width, height, get_value, frames, val_min, val_max, aviFile);
+	
+	//fseek(aviFile.file(), Chunk::STRUCT_SIZE + List::STRUCT_SIZE + g_hdrlBufferSize, SEEK_SET);
 
 	if (fwrite(Riff.data(), 1, cbRiff, aviFile.file()) < cbRiff)
 		throw std::runtime_error("Could not write to a file");
+	generateFrames(width, height, get_value, frames, val_min, val_max, aviFile);
 }
 
 #endif // !AVI_GENERATOR
