@@ -342,13 +342,14 @@ bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigne
 	std::size_t FRAME_BUFFER_SIZE =  frChunkSize * 5;
 	std::size_t FRAMES_PER_BUFFER = FRAME_BUFFER_SIZE / frChunkSize;
 	auto pFrameBuf = std::make_unique<std::uint8_t[]>(FRAMES_PER_BUFFER * frChunkSize);
+	auto offset = RIFFHeader::STRUCT_SIZE + g_hdrlBufferSize + Chunk::STRUCT_SIZE;
 	for (unsigned f1 = 0; f1 < frames; f1 += (unsigned) FRAMES_PER_BUFFER)
 	{
 		for (unsigned f = 0; f < FRAMES_PER_BUFFER; ++f)
 		{
-			//futures.emplace_back(std::async(std::launch::async, [frChunkSize, cbPadding, f, f1, &pFrameBuf](unsigned width, unsigned height, std::reference_wrapper<std::decay_t<Caller>> get_value,
-			//	double val_min, double val_max) -> bool
-			//{
+			futures.emplace_back(std::async(std::launch::async, [frChunkSize, cbPadding, f, f1, &pFrameBuf](unsigned width, unsigned height, std::reference_wrapper<std::decay_t<Caller>> get_value,
+				double val_min, double val_max) -> bool
+			{
 				std::size_t current_frame_offset = frChunkSize * f;
 				Chunk frame(pFrameBuf.get(), current_frame_offset);
 				frame.chunk_id() = make_fcc("00db");
@@ -364,19 +365,18 @@ bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigne
 					memset(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * width, 0, cbPadding);
 
 				}
-				//return true;
-			//}, width, height, std::ref(get_value), val_min, val_max));
-
+				return true;
+			}, width, height, std::ref(get_value), val_min, val_max));
+			offset = output.write_at(offset, pFrameBuf.get(), frChunkSize * FRAMES_PER_BUFFER);
 		}
-		auto res = output.write_at(RIFFHeader::STRUCT_SIZE + g_hdrlBufferSize + Chunk::STRUCT_SIZE + f1 * frChunkSize * FRAMES_PER_BUFFER, pFrameBuf.get(),
-			frChunkSize * FRAMES_PER_BUFFER); //////////////////////////////////////
+
 	}
 
-	//for (std::size_t iFut = 0; iFut < futures.size(); ++iFut)
-	//{
-	//	if (!futures[iFut].get())
-	//		return false;
-	//}
+	for (std::size_t iFut = 0; iFut < futures.size(); ++iFut)
+	{
+		if (!futures[iFut].get())
+			return false;
+	}
 
 	return true;
 }
