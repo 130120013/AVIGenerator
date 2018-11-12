@@ -367,15 +367,16 @@ bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigne
 				}
 				return true;
 			}, width, height, std::ref(get_value), val_min, val_max));
-			offset = output.write_at(offset, pFrameBuf.get(), frChunkSize * FRAMES_PER_BUFFER);
+
 		}
+	
+		for (std::size_t iFut = f1; iFut < f1 + FRAMES_PER_BUFFER; ++iFut)
+		{
+			if (!futures[iFut].get())
+				return false;
+		}
+		offset = output.write_at(offset, pFrameBuf.get(), frChunkSize * FRAMES_PER_BUFFER);
 
-	}
-
-	for (std::size_t iFut = 0; iFut < futures.size(); ++iFut)
-	{
-		if (!futures[iFut].get())
-			return false;
 	}
 
 	return true;
@@ -392,8 +393,6 @@ void generateAVI(const char* file_name, Caller&& get_value, unsigned width, unsi
 	std::unique_ptr<std::uint8_t[]> mem(generateAVIStructures(width, height, frames));
 
 	RIFFHeader Riff(mem.get());
-	
-	//fseek(aviFile.file(), Chunk::STRUCT_SIZE + List::STRUCT_SIZE + g_hdrlBufferSize, SEEK_SET);
 
 	if (fwrite(Riff.data(), 1, cbRiff, aviFile.file()) < cbRiff)
 		throw std::runtime_error("Could not write to a file");
