@@ -52,7 +52,6 @@ struct List: Chunk
 	{
 		return this->chunk_data() + 4;
 	}
-	//static constexpr std::uint32_t LIST_ID = make_fcc("LIST");
 	static constexpr std::size_t STRUCT_SIZE = 12;
 };
 
@@ -69,7 +68,6 @@ struct RIFFHeader : Chunk
 	{
 		return this->chunk_data() + 4;
 	}
-	//static constexpr std::uint32_t RIFF_ID = make_fcc("RIFF");
 	static constexpr std::size_t STRUCT_SIZE = 12;
 };
 
@@ -123,7 +121,6 @@ struct MainAVIHeader:Chunk
 	{
 		return *reinterpret_cast<std::uint32_t*>(this->chunk_data() + 40);
 	}
-	//static constexpr std::uint32_t FCC = 0x61766968;
 	static constexpr std::size_t STRUCT_SIZE = 56; //size without Chunk's fields
 };
 
@@ -166,10 +163,7 @@ private:
 struct AVIStreamHeader
 {
 	AVIStreamHeader() = default;
-	AVIStreamHeader(std::uint8_t* pBuf, std::uint32_t offset = 0) :m_ptr(pBuf + offset)
-	{
-		//this->fccType() = FCCType;
-	}
+	AVIStreamHeader(std::uint8_t* pBuf, std::uint32_t offset = 0) :m_ptr(pBuf + offset){}
 
 	inline std::uint32_t& fccType() const
 	{
@@ -235,7 +229,6 @@ struct AVIStreamHeader
 	{
 		return STRUCT_SIZE;
 	}
-	//static constexpr std::uint32_t FCC = 0x76696473;
 	static constexpr std::size_t STRUCT_SIZE = 48 + 2 * sizeof(long);
 private:
 	std::uint8_t* m_ptr = nullptr;
@@ -345,17 +338,18 @@ bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigne
 	std::vector<std::future<bool>> futures;
 
 	futures.reserve(frames);
-	constexpr std::size_t FRAME_BUFFER_SIZE = (1 << 25);
-	std::size_t FRAMES_PER_BUFFER = FRAME_BUFFER_SIZE / frame_chunk_size(width, height);
-	auto pFrameBuf = std::make_unique<std::uint8_t[]>(FRAMES_PER_BUFFER * frame_chunk_size(width, height));
+	std::size_t frChunkSize = frame_chunk_size(width, height);
+	std::size_t FRAME_BUFFER_SIZE =  frChunkSize * 5;
+	std::size_t FRAMES_PER_BUFFER = FRAME_BUFFER_SIZE / frChunkSize;
+	auto pFrameBuf = std::make_unique<std::uint8_t[]>(FRAMES_PER_BUFFER * frChunkSize);
 	for (unsigned f1 = 0; f1 < frames; f1 += (unsigned) FRAMES_PER_BUFFER)
 	{
 		for (unsigned f = 0; f < FRAMES_PER_BUFFER; ++f)
 		{
-			futures.emplace_back(std::async(std::launch::async, [cbPadding, f, &pFrameBuf](unsigned width, unsigned height, std::reference_wrapper<std::decay_t<Caller>> get_value,
-				double val_min, double val_max) -> bool
-			{
-				auto current_frame_offset = unsigned(frame_chunk_size(width, height) * f);
+			//futures.emplace_back(std::async(std::launch::async, [frChunkSize, cbPadding, f, f1, &pFrameBuf](unsigned width, unsigned height, std::reference_wrapper<std::decay_t<Caller>> get_value,
+			//	double val_min, double val_max) -> bool
+			//{
+				std::size_t current_frame_offset = frChunkSize * f;
 				Chunk frame(pFrameBuf.get(), current_frame_offset);
 				frame.chunk_id() = make_fcc("00db");
 				frame.chunk_size() = unsigned(frame_size(width, height));
@@ -363,25 +357,26 @@ bool generateFrames(unsigned width, unsigned height, Caller&& get_value, unsigne
 				{
 					for (unsigned k = 0; k < width; ++k)
 					{
-						bool successCode = ValToRGB(get_value(k, l, f), val_min, val_max, (RGBTRIPLE*)(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * k));
+						bool successCode = ValToRGB(get_value(k, l, f + f1), val_min, val_max, (RGBTRIPLE*)(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * k));
 						if (!successCode)
 							return false;
 					}
 					memset(frame.chunk_data() + aligned_byte_width(width) * l + COLOR_BYTE_DEPTH * width, 0, cbPadding);
 
 				}
-				return true;
-			}, width, height, std::ref(get_value), val_min, val_max));
+				//return true;
+			//}, width, height, std::ref(get_value), val_min, val_max));
 
 		}
-		output.write_at(RIFFHeader::STRUCT_SIZE + g_hdrlBufferSize + List::STRUCT_SIZE + f1 * frame_chunk_size(width, height) * FRAMES_PER_BUFFER, pFrameBuf.get(), frame_chunk_size(width, height) * FRAMES_PER_BUFFER); //////////////////////////////////////
+		auto res = output.write_at(RIFFHeader::STRUCT_SIZE + g_hdrlBufferSize + Chunk::STRUCT_SIZE + f1 * frChunkSize * FRAMES_PER_BUFFER, pFrameBuf.get(),
+			frChunkSize * FRAMES_PER_BUFFER); //////////////////////////////////////
 	}
 
-	for (std::size_t iFut = 0; iFut < futures.size(); ++iFut)
-	{
-		if (!futures[iFut].get())
-			return false;
-	}
+	//for (std::size_t iFut = 0; iFut < futures.size(); ++iFut)
+	//{
+	//	if (!futures[iFut].get())
+	//		return false;
+	//}
 
 	return true;
 }

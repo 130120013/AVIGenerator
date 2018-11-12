@@ -55,9 +55,6 @@ std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned h
 	RIFF.chunk_id() = make_fcc("RIFF");
 	RIFF.chunk_size() = unsigned(cbRiff - RIFFHeader::STRUCT_SIZE + sizeof(std::uint32_t));
 	RIFF.file_type() = make_fcc("AVI ");
-	//Chunk AVI(RIFF.chunk_data());
-	//AVI.chunk_id() = make_fcc("AVI "); //'AVI '
-	//AVI.chunk_size() = g_hdrlBufferSize;
 
 	//hdrl
 	List hdrl(RIFF.data(), RIFFHeader::STRUCT_SIZE);
@@ -80,7 +77,6 @@ std::unique_ptr<std::uint8_t[]> generateAVIStructures(unsigned width, unsigned h
 	mainAVI.dwWidth() = width;
 	mainAVI.dwHeight() = height;
 	std::uint32_t reserved = 0;
-	//memcpy(&mainAVI.dwReserved(), &reserved, 4 * sizeof(std::uint32_t));
 	memset(&mainAVI.dwReserved(), 0, 4 * sizeof(std::uint32_t));
 
 	//STRL 
